@@ -33,7 +33,7 @@
           <Border Classes="card">
             <StackPanel Spacing="14">
               <StackPanel><TextBlock Text="Kategorie wydatków" Classes="h2" /><TextBlock Text="Jedna kategoria w każdym wierszu" Classes="muted" FontSize="10" /></StackPanel>
-              <TextBox Text="{Binding Shell.CategoriesText}" AcceptsReturn="True" MinHeight="220" Watermark="Jedzenie&#x0a;Transport&#x0a;Rachunki" />
+              <TextBox Text="{Binding Shell.CategoriesText}" AcceptsReturn="True" MinHeight="220" PlaceholderText="Jedzenie&#x0a;Transport&#x0a;Rachunki" />
               <TextBlock Text="Kategorie są dostępne przy wydatkach, wpisach cyklicznych i limitach." Classes="muted" FontSize="10" TextWrapping="Wrap" />
             </StackPanel>
           </Border>

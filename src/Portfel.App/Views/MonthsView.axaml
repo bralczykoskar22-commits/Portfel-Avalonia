@@ -34,13 +34,15 @@
             <TextBlock Grid.Column="1" Text="{Binding Shell.Transactions.Count, StringFormat='{}{0} wpisów'}" Classes="muted" VerticalAlignment="Center" />
           </Grid>
 
-          <Grid ColumnDefinitions="84,*,135,120,96" ColumnSpacing="10" Background="{DynamicResource SurfaceAltBrush}" Margin="-20,0" Padding="20,9">
-            <TextBlock Text="DATA" Classes="eyebrow" />
-            <TextBlock Grid.Column="1" Text="OPERACJA" Classes="eyebrow" />
-            <TextBlock Grid.Column="2" Text="RODZAJ" Classes="eyebrow" />
-            <TextBlock Grid.Column="3" Text="KWOTA" Classes="eyebrow" TextAlignment="Right" />
-            <TextBlock Grid.Column="4" Text="AKCJE" Classes="eyebrow" TextAlignment="Right" />
-          </Grid>
+          <Border Background="{DynamicResource SurfaceAltBrush}" Margin="-20,0" Padding="20,9">
+            <Grid ColumnDefinitions="84,*,135,120,96" ColumnSpacing="10">
+              <TextBlock Text="DATA" Classes="eyebrow" />
+              <TextBlock Grid.Column="1" Text="OPERACJA" Classes="eyebrow" />
+              <TextBlock Grid.Column="2" Text="RODZAJ" Classes="eyebrow" />
+              <TextBlock Grid.Column="3" Text="KWOTA" Classes="eyebrow" TextAlignment="Right" />
+              <TextBlock Grid.Column="4" Text="AKCJE" Classes="eyebrow" TextAlignment="Right" />
+            </Grid>
+          </Border>
 
           <ItemsControl ItemsSource="{Binding Shell.Transactions}" IsVisible="{Binding Shell.HasTransactions}">
             <ItemsControl.ItemTemplate>
@@ -72,4 +74,3 @@
     </StackPanel>
   </ScrollViewer>
 </UserControl>
-

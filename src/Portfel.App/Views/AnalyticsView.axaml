@@ -62,7 +62,9 @@
       <Border Classes="card">
         <StackPanel Spacing="13">
           <TextBlock Text="Podsumowanie miesięcy" Classes="h2" />
-          <Grid ColumnDefinitions="*,*,*" Background="{DynamicResource SurfaceAltBrush}" Padding="12,9"><TextBlock Text="MIESIĄC" Classes="eyebrow" /><TextBlock Grid.Column="1" Text="WPŁYWY" Classes="eyebrow" TextAlignment="Right" /><TextBlock Grid.Column="2" Text="ODPŁYWY" Classes="eyebrow" TextAlignment="Right" /></Grid>
+          <Border Background="{DynamicResource SurfaceAltBrush}" Padding="12,9">
+            <Grid ColumnDefinitions="*,*,*"><TextBlock Text="MIESIĄC" Classes="eyebrow" /><TextBlock Grid.Column="1" Text="WPŁYWY" Classes="eyebrow" TextAlignment="Right" /><TextBlock Grid.Column="2" Text="ODPŁYWY" Classes="eyebrow" TextAlignment="Right" /></Grid>
+          </Border>
           <ItemsControl ItemsSource="{Binding Shell.AnnualBars}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:MonthBar">
