@@ -1,11 +1,13 @@
 {
-  "version": 3,
+  "version": 4,
   "meta": {
-    "savedAt": null
+    "savedAt": null,
+    "createdAt": "2026-07-20T00:00:00.000Z"
   },
   "settings": {
     "currentYear": 2026,
     "theme": "light",
+    "currency": "PLN",
     "balances": {
       "2026": {
         "available": 0,
@@ -31,8 +33,36 @@
       "Prezenty",
       "Podróże",
       "Inne"
-    ]
+    ],
+    "modules": {
+      "bankAccounts": false,
+      "statementImport": false,
+      "alerts": true,
+      "dailyLimit": true,
+      "weeklyLimit": true,
+      "interest": true,
+      "recurring": true,
+      "categoryBudgets": true
+    },
+    "payday": {
+      "day": 10,
+      "nextDate": ""
+    }
   },
+  "accounts": [
+    {
+      "id": "cash-main",
+      "name": "Gotówka",
+      "type": "cash",
+      "currency": "PLN",
+      "openingBalances": {
+        "2026": 0
+      },
+      "active": true,
+      "includeInSpendingLimit": true,
+      "createdAt": "2026-07-20T00:00:00.000Z"
+    }
+  ],
   "goals": [],
   "debts": [],
   "recurring": [],

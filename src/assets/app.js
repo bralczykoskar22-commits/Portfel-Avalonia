@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  var desktop = window.portfelDesktop || null;
   var API_URL = "/api/data";
   var BACKUPS_URL = "/api/backups";
   var RESTORE_URL = "/api/restore";
@@ -19,7 +20,8 @@
     goal_withdraw: "Wypłata z celu",
     debt: "Wpłata na dług",
     reserve_in: "Do rezerwy",
-    reserve_out: "Z rezerwy"
+    reserve_out: "Z rezerwy",
+    transfer: "Transfer"
   };
   var PAGE_META = {
     dashboard: ["Podsumowanie", "Roczny widok"],
@@ -28,7 +30,18 @@
     debts: ["Długi", "Spłacanie"],
     plan: ["Plan", "Kalendarz i automatyzacja"],
     analytics: ["Analizy", "Prognoza i raporty"],
+    accounts: ["Konta", "Gotówka i bank"],
     settings: ["Ustawienia", "Lokalne dane"]
+  };
+  var DEFAULT_MODULES = {
+    bankAccounts: false,
+    statementImport: false,
+    alerts: true,
+    dailyLimit: true,
+    weeklyLimit: true,
+    interest: true,
+    recurring: true,
+    categoryBudgets: true
   };
   var CADENCE_LABELS = {
     monthly: "co miesiąc",
@@ -43,6 +56,8 @@
   var data = null;
   var dirty = false;
   var saving = false;
+  var appInfo = null;
+  var updateStatus = null;
   var state = {
     page: "dashboard",
     month: 0,
@@ -52,76 +67,10 @@
     editingDebt: null,
     editingRecurring: null,
     editingBudget: null,
-    transactionPreset: null
+    editingAccount: null,
+    transactionPreset: null,
+    statementPreview: null
   };
-
-  function isTauriApp() {
-    return Boolean(window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke);
-  }
-
-  function invokeNative(command, argumentsObject) {
-    return window.__TAURI__.core.invoke(command, argumentsObject || {});
-  }
-
-  async function storageLoad() {
-    if (isTauriApp()) return invokeNative("load_data");
-    var response = await fetch(API_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error("Serwer nie odpowiada");
-    return response.json();
-  }
-
-  async function storageSave(payload) {
-    if (isTauriApp()) return invokeNative("save_data", { payload: payload });
-    var response = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    var result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || "Nieznany błąd zapisu");
-    return result;
-  }
-
-  async function storageBackups() {
-    if (isTauriApp()) return invokeNative("list_backups");
-    var response = await fetch(BACKUPS_URL, { cache: "no-store" });
-    var result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || "Błąd listy kopii");
-    return result;
-  }
-
-  async function storageRestore(name) {
-    if (isTauriApp()) return invokeNative("restore_backup", { name: name });
-    var response = await fetch(RESTORE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name })
-    });
-    var result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || "Błąd przywracania");
-    return result;
-  }
-
-  async function refreshStorageInfo() {
-    if (!isTauriApp()) return;
-    try {
-      var info = await invokeNative("storage_info");
-      var location = $("#storage-location");
-      var fileName = $("#storage-file-name");
-      var fileDescription = $("#storage-file-description");
-      if (location) {
-        location.textContent = "Baza: portfel.sqlite";
-        location.title = info.databasePath;
-      }
-      if (fileName) fileName.textContent = "portfel.sqlite";
-      if (fileDescription) {
-        fileDescription.textContent = "Lokalna baza SQLite — zapis po kliknięciu „Zapisz”";
-        fileDescription.title = info.databasePath;
-      }
-    } catch (_error) {
-      // Informacja o ścieżce jest pomocnicza i nie blokuje działania programu.
-    }
-  }
 
   function $(selector) {
     return document.querySelector(selector);
@@ -288,14 +237,27 @@
     var balances = {};
     balances[String(year)] = { available: 0, reserve: 0 };
     return {
-      version: 3,
-      meta: { savedAt: null },
+      version: 4,
+      meta: { savedAt: null, createdAt: new Date().toISOString() },
       settings: {
         currentYear: year,
         theme: "light",
+        currency: "PLN",
         balances: balances,
-        categories: DEFAULT_CATEGORIES.slice()
+        categories: DEFAULT_CATEGORIES.slice(),
+        modules: Object.assign({}, DEFAULT_MODULES),
+        payday: { day: 10, nextDate: "" }
       },
+      accounts: [{
+        id: "cash-main",
+        name: "Gotówka",
+        type: "cash",
+        currency: "PLN",
+        openingBalances: (function () { var values = {}; values[String(year)] = 0; return values; }()),
+        active: true,
+        includeInSpendingLimit: true,
+        createdAt: new Date().toISOString()
+      }],
       goals: [],
       debts: [],
       recurring: [],
@@ -319,6 +281,13 @@
       };
     });
     var categories = Array.isArray(settings.categories) ? settings.categories.map(String).filter(Boolean) : [];
+    var modules = Object.assign({}, DEFAULT_MODULES, settings.modules && typeof settings.modules === "object" ? settings.modules : {});
+    if (!modules.bankAccounts) modules.statementImport = false;
+    var paydayRaw = settings.payday && typeof settings.payday === "object" ? settings.payday : {};
+    var payday = {
+      day: Math.min(31, Math.max(1, Math.round(number(paydayRaw.day) || 10))),
+      nextDate: String(paydayRaw.nextDate || "")
+    };
     var today = isoDate(new Date());
     var goals = Array.isArray(raw.goals) ? raw.goals.filter(Boolean).map(function (item) {
       var createdDate = String(item.createdAt || "").slice(0, 10);
@@ -342,11 +311,42 @@
         total: Math.max(0, number(item.total)),
         deadline: String(item.deadline || ""),
         apr: Math.max(0, number(item.apr)),
+        interestEnabled: item.interestEnabled !== false && number(item.apr) > 0,
         minimumPayment: Math.max(0, number(item.minimumPayment)),
         paymentDay: Math.min(31, Math.max(1, Math.round(number(item.paymentDay) || 1))),
         createdAt: String(item.createdAt || new Date().toISOString())
       };
     }) : [];
+    var rawAccounts = Array.isArray(raw.accounts) ? raw.accounts.filter(Boolean) : [];
+    if (!rawAccounts.length) {
+      rawAccounts = [{
+        id: "cash-main",
+        name: "Gotówka",
+        type: "cash",
+        currency: "PLN",
+        openingBalances: (function () { var values = {}; values[String(year)] = number(balances[String(year)].available); return values; }()),
+        active: true,
+        includeInSpendingLimit: true,
+        createdAt: new Date().toISOString()
+      }];
+    }
+    var accounts = rawAccounts.map(function (item, index) {
+      var type = item.type === "bank" || item.type === "savings" ? item.type : "cash";
+      var openings = item.openingBalances && typeof item.openingBalances === "object" ? item.openingBalances : {};
+      if (openings[String(year)] == null) openings[String(year)] = index === 0 ? number(balances[String(year)].available) : 0;
+      Object.keys(openings).forEach(function (key) { openings[key] = number(openings[key]); });
+      return {
+        id: String(item.id || (index === 0 ? "cash-main" : uid("account"))),
+        name: String(item.name || (type === "cash" ? "Gotówka" : "Konto bankowe")),
+        type: type,
+        currency: "PLN",
+        openingBalances: openings,
+        active: item.active !== false,
+        includeInSpendingLimit: item.includeInSpendingLimit !== false,
+        createdAt: String(item.createdAt || new Date().toISOString())
+      };
+    });
+    var defaultAccountId = (accounts.find(function (item) { return item.type === "cash"; }) || accounts[0]).id;
     var recurring = Array.isArray(raw.recurring) ? raw.recurring.filter(Boolean).map(function (item) {
       return {
         id: String(item.id || uid("rec")),
@@ -354,6 +354,7 @@
         type: item.type === "income" ? "income" : "expense",
         amount: Math.max(0, number(item.amount)),
         category: String(item.category || base.settings.categories[0]),
+        accountId: String(item.accountId || defaultAccountId),
         cadence: item.cadence === "weekly" ? "weekly" : "monthly",
         day: Math.min(item.cadence === "weekly" ? 7 : 31, Math.max(1, Math.round(number(item.day) || 1))),
         startDate: String(item.startDate || today),
@@ -382,18 +383,26 @@
         description: String(item.description || ""),
         amount: Math.max(0, number(item.amount)),
         note: String(item.note || ""),
+        accountId: String(item.accountId || defaultAccountId),
+        toAccountId: String(item.toAccountId || ""),
+        importFingerprint: String(item.importFingerprint || ""),
+        source: String(item.source || "manual"),
         createdAt: String(item.createdAt || new Date().toISOString())
       };
     }) : [];
     return {
-      version: 3,
+      version: 4,
       meta: raw.meta && typeof raw.meta === "object" ? raw.meta : { savedAt: null },
       settings: {
         currentYear: year,
         theme: settings.theme === "dark" ? "dark" : "light",
+        currency: "PLN",
         balances: balances,
-        categories: categories.length ? categories : base.settings.categories
+        categories: categories.length ? categories : base.settings.categories,
+        modules: modules,
+        payday: payday
       },
+      accounts: accounts,
       goals: goals,
       debts: debts,
       recurring: recurring,
@@ -414,6 +423,61 @@
     return data.settings.balances[key];
   }
 
+  function modules() {
+    return data.settings.modules || DEFAULT_MODULES;
+  }
+
+  function activeAccounts(includeHidden) {
+    return data.accounts.filter(function (account) {
+      if (!includeHidden && account.active === false) return false;
+      return modules().bankAccounts || account.type === "cash";
+    });
+  }
+
+  function accountById(id) {
+    return data.accounts.find(function (account) { return account.id === id; }) || null;
+  }
+
+  function mainCashAccount() {
+    return data.accounts.find(function (account) { return account.type === "cash"; }) || data.accounts[0];
+  }
+
+  function accountName(id) {
+    var account = accountById(id);
+    return account ? account.name : "Nieznane konto";
+  }
+
+  function accountOpening(account) {
+    return account && account.openingBalances ? number(account.openingBalances[String(currentYear())]) : 0;
+  }
+
+  function totalOpeningAvailable() {
+    return data.accounts.reduce(function (sum, account) { return sum + accountOpening(account); }, 0);
+  }
+
+  function accountImpact(transaction, accountId) {
+    var amount = number(transaction.amount);
+    if (transaction.type === "transfer") {
+      if (transaction.accountId === accountId) return -amount;
+      if (transaction.toAccountId === accountId) return amount;
+      return 0;
+    }
+    if (transaction.accountId !== accountId) return 0;
+    if (transaction.type === "income" || transaction.type === "goal_withdraw" || transaction.type === "reserve_out") return amount;
+    if (transaction.type === "expense" || transaction.type === "goal" || transaction.type === "debt" || transaction.type === "reserve_in") return -amount;
+    return 0;
+  }
+
+  function accountBalance(account, throughDate) {
+    var balance = accountOpening(account);
+    yearTransactions().forEach(function (transaction) {
+      if (!throughDate || String(transaction.date || "") <= throughDate) {
+        balance += accountImpact(transaction, account.id);
+      }
+    });
+    return balance;
+  }
+
   function impact(transaction) {
     var amount = number(transaction.amount);
     if (transaction.type === "income") return { available: amount, reserve: 0 };
@@ -423,6 +487,7 @@
     if (transaction.type === "goal_withdraw") return { available: amount, reserve: 0 };
     if (transaction.type === "reserve_in") return { available: -amount, reserve: amount };
     if (transaction.type === "reserve_out") return { available: amount, reserve: -amount };
+    if (transaction.type === "transfer") return { available: 0, reserve: 0 };
     return { available: 0, reserve: 0 };
   }
 
@@ -450,7 +515,7 @@
 
   function balancesBeforeMonth(month) {
     var opening = yearBalance();
-    var available = number(opening.available);
+    var available = totalOpeningAvailable();
     var reserve = number(opening.reserve);
     yearTransactions().forEach(function (transaction) {
       var date = dateFromISO(transaction.date);
@@ -465,7 +530,7 @@
 
   function balancesAtYearEnd() {
     var opening = yearBalance();
-    var available = number(opening.available);
+    var available = totalOpeningAvailable();
     var reserve = number(opening.reserve);
     yearTransactions().forEach(function (transaction) {
       var delta = impact(transaction);
@@ -508,8 +573,38 @@
     return Math.max(number(goal.target) - goalSaved(goal, excludingId), 0);
   }
 
+  function debtLedger(debt, excludingId) {
+    var balance = Math.max(0, number(debt.total));
+    var interest = 0;
+    var rate = modules().interest && debt.interestEnabled ? Math.max(0, number(debt.apr)) / 1200 : 0;
+    var created = dateFromISO(String(debt.createdAt || "").slice(0, 10)) || startOfToday();
+    var cursor = created;
+    var payments = sortedTransactions(data.transactions.filter(function (transaction) {
+      return transaction.id !== excludingId && transaction.type === "debt" && transaction.targetId === debt.id;
+    }));
+    payments.forEach(function (payment) {
+      var date = dateFromISO(payment.date) || cursor;
+      var periods = Math.max(0, (date.getFullYear() - cursor.getFullYear()) * 12 + date.getMonth() - cursor.getMonth());
+      if (rate > 0 && periods > 0 && balance > 0) {
+        var before = balance;
+        balance *= Math.pow(1 + rate, periods);
+        interest += balance - before;
+      }
+      balance = Math.max(0, balance - number(payment.amount));
+      if (date.getTime() > cursor.getTime()) cursor = date;
+    });
+    var today = startOfToday();
+    var finalPeriods = Math.max(0, (today.getFullYear() - cursor.getFullYear()) * 12 + today.getMonth() - cursor.getMonth());
+    if (rate > 0 && finalPeriods > 0 && balance > 0) {
+      var current = balance;
+      balance *= Math.pow(1 + rate, finalPeriods);
+      interest += balance - current;
+    }
+    return { balance: Math.max(balance, 0), accruedInterest: Math.max(interest, 0) };
+  }
+
   function debtRemaining(debt, excludingId) {
-    return Math.max(number(debt.total) - debtPaid(debt, excludingId), 0);
+    return debtLedger(debt, excludingId).balance;
   }
 
   function monthDistance(start, end) {
@@ -586,7 +681,8 @@
   function debtPlan(debt, referenceDate) {
     var today = referenceDate || startOfToday();
     var deadline = dateFromISO(debt.deadline);
-    var remaining = debtRemaining(debt);
+    var ledger = debtLedger(debt);
+    var remaining = ledger.balance;
     var dates = deadline ? debtScheduleDates(debt, today, deadline).filter(function (date) {
       var key = isoDate(date);
       return !data.transactions.some(function (transaction) {
@@ -594,7 +690,7 @@
       });
     }) : [];
     var periods = dates.length;
-    var monthlyRate = Math.max(0, number(debt.apr)) / 1200;
+    var monthlyRate = modules().interest && debt.interestEnabled ? Math.max(0, number(debt.apr)) / 1200 : 0;
     var required = remaining;
     if (periods > 0) {
       required = monthlyRate > 0
@@ -627,8 +723,9 @@
       nextDate: dates[0] || null,
       projected: projected,
       estimatedInterest: interest,
+      accruedInterest: ledger.accruedInterest,
       impossible: remaining > 0 && (!deadline || !periods),
-      apr: Math.max(0, number(debt.apr))
+      apr: monthlyRate > 0 ? Math.max(0, number(debt.apr)) : 0
     };
   }
 
@@ -654,6 +751,9 @@
     if (transaction.type === "debt") {
       var debt = data.debts.find(function (item) { return item.id === transaction.targetId; });
       return debt ? debt.name : "Usunięty dług";
+    }
+    if (transaction.type === "transfer") {
+      return accountName(transaction.accountId) + " → " + accountName(transaction.toAccountId);
     }
     if (transaction.type === "reserve_in" || transaction.type === "reserve_out") return "Rezerwa";
     return transaction.category || "Bez kategorii";
@@ -688,7 +788,7 @@
     var indicator = $("#dirty-indicator");
     if (saving) {
       label.textContent = "Zapisywanie…";
-      time.textContent = isTauriApp() ? "portfel.sqlite" : "data/budget.json";
+      time.textContent = desktop ? "Lokalna baza SQLite" : "data/budget.json";
     } else if (dirty) {
       label.textContent = "Niezapisane zmiany";
       time.textContent = "Kliknij Zapisz";
@@ -706,14 +806,26 @@
     saving = true;
     updateSaveState();
     try {
-      var result = await storageSave(data);
+      var result;
+      if (desktop) {
+        result = await desktop.data.save(data);
+      } else {
+        var response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Nieznany błąd zapisu");
+      }
+      if (!result || !result.ok) throw new Error(result && result.error || "Nieznany błąd zapisu");
       data.meta.savedAt = result.savedAt;
       dirty = false;
-      showToast(isTauriApp() ? "Zapisano w lokalnej bazie Portfela." : "Zapisano do pliku data/budget.json.");
+      showToast(desktop ? "Zapisano bezpiecznie w lokalnej bazie." : "Zapisano do pliku data/budget.json.");
       loadBackups(true);
     } catch (error) {
       dirty = true;
-      showToast("Nie udało się zapisać: " + (error && error.message ? error.message : String(error)));
+      showToast("Nie udało się zapisać: " + error.message);
     } finally {
       saving = false;
       updateSaveState();
@@ -722,11 +834,20 @@
 
   async function loadFromFile() {
     try {
-      var raw = await storageLoad();
+      var raw;
+      if (desktop) {
+        raw = await desktop.data.load();
+        appInfo = await desktop.app.getInfo();
+        updateStatus = await desktop.updater.getStatus();
+      } else {
+        var response = await fetch(API_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error("Serwer nie odpowiada");
+        raw = await response.json();
+      }
       data = normalizeData(raw);
       state.month = currentYear() === new Date().getFullYear() ? new Date().getMonth() : 0;
       state.planMonth = state.month;
-      dirty = number(raw.version) > 0 && number(raw.version) < 3;
+      dirty = number(raw.version) > 0 && number(raw.version) < 4;
       applyTheme();
       renderAll();
       $("#app").hidden = false;
@@ -736,23 +857,24 @@
         window.setTimeout(function () { $("#loading-screen").hidden = true; }, 380);
       }, 180);
       loadBackups(true);
-      refreshStorageInfo();
     } catch (error) {
       $("#loading-screen").hidden = true;
       $("#app").hidden = true;
       $("#connection-error").hidden = false;
-      if (isTauriApp()) {
-        var title = $("#connection-error h1");
-        var description = $("#connection-error p");
-        if (title) title.textContent = "Nie udało się otworzyć lokalnych danych";
-        if (description) description.textContent = "Program nie może otworzyć bazy Portfela. Spróbuj ponownie. Szczegóły: " + error;
-      }
     }
   }
 
   async function loadBackups(silent) {
     try {
-      var result = await storageBackups();
+      var result;
+      if (desktop) {
+        result = await desktop.data.listBackups();
+      } else {
+        var response = await fetch(BACKUPS_URL, { cache: "no-store" });
+        result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Błąd listy kopii");
+      }
+      if (!result || !result.ok) throw new Error(result && result.error || "Błąd listy kopii");
       backups = Array.isArray(result.backups) ? result.backups : [];
       if (data && $("#backups-list")) renderBackups();
     } catch (error) {
@@ -768,11 +890,23 @@
       : "Przywrócić tę kopię? Obecny plik zostanie wcześniej zabezpieczony.";
     if (!window.confirm(question)) return;
     try {
-      await storageRestore(name);
+      var result;
+      if (desktop) {
+        result = await desktop.data.restoreBackup(name);
+      } else {
+        var response = await fetch(RESTORE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name })
+        });
+        result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Błąd przywracania");
+      }
+      if (!result || !result.ok) throw new Error(result && result.error || "Błąd przywracania");
       await loadFromFile();
       showToast("Przywrócono wybraną kopię danych.");
     } catch (error) {
-      showToast("Nie udało się przywrócić kopii: " + (error && error.message ? error.message : String(error)));
+      showToast("Nie udało się przywrócić kopii: " + error.message);
     }
   }
 
@@ -796,6 +930,7 @@
 
   function setPage(page) {
     if (!PAGE_META[page]) return;
+    if (page === "accounts" && !modules().bankAccounts) page = "dashboard";
     state.page = page;
     $$("[data-page]").forEach(function (panel) {
       var visible = panel.getAttribute("data-page") === page;
@@ -815,15 +950,22 @@
     if (page === "debts") renderDebts();
     if (page === "plan") renderPlan();
     if (page === "analytics") renderAnalytics();
+    if (page === "accounts") renderAccounts();
     if (page === "settings") renderSettings();
   }
 
   function renderNavCounts() {
     $("#goals-nav-count").textContent = data.goals.filter(function (goal) { return goalRemaining(goal) > 0; }).length;
     $("#debts-nav-count").textContent = data.debts.filter(function (debt) { return debtRemaining(debt) > 0; }).length;
+    $("#accounts-nav-count").textContent = data.accounts.filter(function (account) { return account.active !== false; }).length;
+    $("#accounts-nav").hidden = !modules().bankAccounts;
   }
 
   function renderAlerts() {
+    if (!modules().alerts) {
+      $("#deadline-alerts").innerHTML = "";
+      return;
+    }
     var alerts = [];
     data.goals.forEach(function (goal) {
       var plan = goalPlan(goal);
@@ -845,7 +987,7 @@
         alerts.push({ kind: "Dług", name: debt.name, priority: info.priority, message: info.text + " • zostało " + money(plan.remaining), page: "debts" });
       }
     });
-    data.budgets.forEach(function (budget) {
+    (modules().categoryBudgets ? data.budgets : []).forEach(function (budget) {
       var spent = categorySpent(budget.category, state.month);
       if (spent > number(budget.limit) + .0001) {
         alerts.push({ kind: "Koperta", name: budget.category, priority: 2, message: "Limit przekroczony o " + money(spent - number(budget.limit)), page: "plan" });
@@ -869,22 +1011,75 @@
     }).join("");
   }
 
+  function nextPaydayDate() {
+    var today = startOfToday();
+    var exact = dateFromISO(data.settings.payday && data.settings.payday.nextDate);
+    if (exact && exact.getTime() >= today.getTime()) return exact;
+    var day = Math.min(31, Math.max(1, Math.round(number(data.settings.payday && data.settings.payday.day) || 10)));
+    var candidate = clampDate(today.getFullYear(), today.getMonth(), day);
+    if (candidate.getTime() <= today.getTime()) candidate = clampDate(today.getFullYear(), today.getMonth() + 1, day);
+    return candidate;
+  }
+
+  function renderSpendingLimits() {
+    var node = $("#spending-limits");
+    if (!modules().dailyLimit && !modules().weeklyLimit) {
+      node.hidden = true;
+      node.innerHTML = "";
+      return;
+    }
+    var today = startOfToday();
+    if (today.getFullYear() !== currentYear()) {
+      node.hidden = true;
+      return;
+    }
+    var available = activeAccounts().filter(function (account) { return account.includeInSpendingLimit !== false; }).reduce(function (sum, account) {
+      return sum + accountBalance(account, isoDate(today));
+    }, 0);
+    var payday = nextPaydayDate();
+    var days = Math.max(1, Math.ceil((payday.getTime() - today.getTime()) / 86400000));
+    var months = {};
+    var cursor = startOfMonth(today.getFullYear(), today.getMonth());
+    var paydayMonth = startOfMonth(payday.getFullYear(), payday.getMonth());
+    while (cursor.getTime() <= paydayMonth.getTime()) {
+      if (cursor.getFullYear() === currentYear()) months[cursor.getMonth()] = true;
+      cursor = startOfMonth(cursor.getFullYear(), cursor.getMonth() + 1);
+    }
+    var obligations = Object.keys(months).reduce(function (sum, month) {
+      return sum + plannedItemsForMonth(Number(month)).reduce(function (monthSum, item) {
+        if (item.complete || item.remaining <= 0 || item.date.getTime() < today.getTime() || item.date.getTime() >= payday.getTime()) return monthSum;
+        if (item.kind === "recurring" && item.direction === "income") return monthSum;
+        return monthSum + item.remaining;
+      }, 0);
+    }, 0);
+    var spendable = Math.max(0, available - obligations);
+    var daily = spendable / days;
+    var cards = [];
+    if (modules().dailyLimit) cards.push("<article class=\"limit-card\"><div class=\"limit-icon\">D</div><div><span>Bezpiecznie dzisiaj</span><strong>" + escapeHTML(money(daily)) + "</strong><small>przez " + days + " dni do wypłaty</small></div></article>");
+    if (modules().weeklyLimit) cards.push("<article class=\"limit-card\"><div class=\"limit-icon\">7</div><div><span>Limit na 7 dni</span><strong>" + escapeHTML(money(daily * Math.min(7, days))) + "</strong><small>po odjęciu zaplanowanych płatności</small></div></article>");
+    cards.push("<article class=\"limit-card\"><div class=\"limit-icon\">→</div><div><span>Następna wypłata</span><strong>" + escapeHTML(formattedDate(isoDate(payday))) + "</strong><small>Do wydania " + escapeHTML(money(spendable)) + " • plan " + escapeHTML(money(obligations)) + "</small></div></article>");
+    node.innerHTML = cards.join("");
+    node.hidden = false;
+  }
+
   function renderDashboard() {
     $("#hero-year").textContent = currentYear();
     var ending = balancesAtYearEnd();
     var goalsSaved = data.goals.reduce(function (sum, goal) { return sum + goalSaved(goal); }, 0);
     var goalsTarget = data.goals.reduce(function (sum, goal) { return sum + number(goal.target); }, 0);
     var debtsPaid = data.debts.reduce(function (sum, debt) { return sum + debtPaid(debt); }, 0);
-    var debtsTotal = data.debts.reduce(function (sum, debt) { return sum + number(debt.total); }, 0);
+    var debtsRemaining = data.debts.reduce(function (sum, debt) { return sum + debtRemaining(debt); }, 0);
     $("#metric-available").textContent = money(ending.available);
+    $("#metric-available-label").textContent = modules().bankAccounts ? "Środki dostępne" : "Gotówka dostępna";
     $("#metric-available").classList.toggle("negative", ending.available < 0);
     $("#metric-reserve").textContent = money(ending.reserve);
     $("#metric-reserve").classList.toggle("negative", ending.reserve < 0);
     $("#metric-goals").textContent = money(goalsSaved);
     $("#metric-goals-note").textContent = data.goals.length ? "Z " + money(goalsTarget) + " celu" : "Brak celów";
-    $("#metric-debts").textContent = money(Math.max(debtsTotal - debtsPaid, 0));
+    $("#metric-debts").textContent = money(debtsRemaining);
     $("#metric-debts-note").textContent = data.debts.length ? "Spłacono " + money(debtsPaid) : "Brak długów";
     renderAlerts();
+    renderSpendingLimits();
     renderAnnualChart();
     renderRecentTransactions();
   }
@@ -949,10 +1144,11 @@
     node.innerHTML = recent.map(function (transaction, index) {
       var delta = impact(transaction).available;
       var out = delta < 0;
+      var transfer = transaction.type === "transfer";
       return "<div class=\"recent-item\" style=\"animation-delay:" + (index * .045) + "s\">" +
-        "<div class=\"recent-icon " + (out ? "is-out" : "") + "\">" + (out ? "↓" : "↑") + "</div>" +
+        "<div class=\"recent-icon " + (out ? "is-out" : "") + "\">" + (transfer ? "↔" : out ? "↓" : "↑") + "</div>" +
         "<div class=\"recent-main\"><strong>" + escapeHTML(transaction.description || TYPE_LABELS[transaction.type]) + "</strong><span>" + escapeHTML(targetName(transaction)) + " • " + escapeHTML(formattedDate(transaction.date)) + "</span></div>" +
-        "<div class=\"recent-amount " + (out ? "is-out" : "") + "\"><strong>" + (out ? "−" : "+") + escapeHTML(money(transaction.amount)) + "</strong><small>" + escapeHTML(TYPE_LABELS[transaction.type]) + "</small></div></div>";
+        "<div class=\"recent-amount " + (out ? "is-out" : "") + "\"><strong>" + (transfer ? "" : out ? "−" : "+") + escapeHTML(money(transaction.amount)) + "</strong><small>" + escapeHTML(TYPE_LABELS[transaction.type]) + "</small></div></div>";
     }).join("");
   }
 
@@ -982,7 +1178,7 @@
     var start = startOfMonth(currentYear(), month);
     var end = endOfMonth(currentYear(), month);
     var items = [];
-    data.recurring.filter(function (recurring) { return recurring.active; }).forEach(function (recurring) {
+    (modules().recurring ? data.recurring : []).filter(function (recurring) { return recurring.active; }).forEach(function (recurring) {
       recurringOccurrences(recurring, start, end).forEach(function (date) {
         var key = isoDate(date);
         var posted = postedOccurrence(recurring.id, key);
@@ -1030,7 +1226,7 @@
       items.push({
         kind: "debt",
         title: debt.name,
-        subtitle: "Planowana rata • oprocentowanie " + number(debt.apr).toLocaleString("pl-PL") + "%",
+        subtitle: "Planowana rata • " + (plan.apr > 0 ? "oprocentowanie " + number(plan.apr).toLocaleString("pl-PL") + "%" : "bez odsetek"),
         date: dates[dates.length - 1],
         planned: planned,
         actual: actual,
@@ -1098,16 +1294,17 @@
       rows.push("<tr>" +
         "<td data-label=\"Data\">" + escapeHTML(formattedDate(transaction.date)) + "</td>" +
         "<td data-label=\"Rodzaj\">" + escapeHTML(TYPE_LABELS[transaction.type] || transaction.type) + "</td>" +
+        "<td data-label=\"Konto\">" + escapeHTML(transaction.type === "transfer" ? accountName(transaction.accountId) + " → " + accountName(transaction.toAccountId) : accountName(transaction.accountId)) + "</td>" +
         "<td data-label=\"Powiązanie\">" + escapeHTML(targetName(transaction)) + "</td>" +
         "<td data-label=\"Opis\">" + escapeHTML(transaction.description || "—") + "</td>" +
-        "<td data-label=\"Kwota\" class=\"amount " + (out ? "is-out" : "") + "\">" + (out ? "−" : "+") + escapeHTML(money(transaction.amount)) + "</td>" +
+        "<td data-label=\"Kwota\" class=\"amount " + (out ? "is-out" : "") + "\">" + (transaction.type === "transfer" ? "" : out ? "−" : "+") + escapeHTML(money(transaction.amount)) + "</td>" +
         "<td data-label=\"Saldo dostępne\" class=\"balance " + (available < 0 ? "negative" : "") + "\">" + escapeHTML(money(available)) + "</td>" +
         "<td data-label=\"Działania\"><div class=\"row-actions\">" +
         "<button class=\"tiny-button\" type=\"button\" data-edit-transaction=\"" + escapeHTML(transaction.id) + "\" aria-label=\"Edytuj\"><svg viewBox=\"0 0 24 24\"><path d=\"m4 20 4-1 11-11-3-3L5 16l-1 4Z\"></path></svg></button>" +
         "<button class=\"tiny-button is-delete\" type=\"button\" data-delete-transaction=\"" + escapeHTML(transaction.id) + "\" aria-label=\"Usuń\"><svg viewBox=\"0 0 24 24\"><path d=\"M5 7h14M9 7V4h6v3m-8 0 1 13h8l1-13\"></path></svg></button>" +
         "</div></td></tr>");
     });
-    $("#transactions-table").innerHTML = rows.length ? rows.join("") : "<tr><td class=\"empty-table-cell\" colspan=\"7\"><div class=\"empty-state\">Brak operacji w tym miesiącu. Kliknij „Dodaj operację”.</div></td></tr>";
+    $("#transactions-table").innerHTML = rows.length ? rows.join("") : "<tr><td class=\"empty-table-cell\" colspan=\"8\"><div class=\"empty-state\">Brak operacji w tym miesiącu. Kliknij „Dodaj operację”.</div></td></tr>";
     $("#month-ending").textContent = money(available);
     $("#month-ending").classList.toggle("negative", available < 0);
     $("#month-reserve-ending").textContent = "Rezerwa: " + money(reserve);
@@ -1189,7 +1386,7 @@
         "<div class=\"target-progress-row\"><div class=\"progress-ring\" style=\"--progress:" + (percent * 3.6) + "deg\"><div><strong>" + Math.round(percent) + "%</strong><span>spłacono</span></div></div>" +
         "<div class=\"recommended-box is-debt\"><span>Zalecana rata</span><strong>" + escapeHTML(money(plan.recommended)) + "</strong><small>miesięcznie • najbliższa " + escapeHTML(next) + "</small></div></div>" +
         "<div class=\"target-numbers target-numbers-three\"><div class=\"target-number\"><span>Spłacono</span><strong>" + escapeHTML(money(plan.paid)) + "</strong></div><div class=\"target-number\"><span>Zostało</span><strong>" + escapeHTML(money(plan.remaining)) + "</strong></div><div class=\"target-number\"><span>Odsetki prognozowane</span><strong>" + escapeHTML(money(plan.estimatedInterest)) + "</strong></div></div>" +
-        "<div class=\"schedule-details\"><div><span>Oprocentowanie</span><strong>" + escapeHTML(number(debt.apr).toLocaleString("pl-PL")) + "% rocznie</strong></div><div><span>Prognozowana spłata</span><strong>" + escapeHTML(projected) + "</strong></div></div>" +
+        "<div class=\"schedule-details\"><div><span>Oprocentowanie</span><strong>" + (plan.apr > 0 ? escapeHTML(number(plan.apr).toLocaleString("pl-PL")) + "% rocznie • naliczone ok. " + escapeHTML(money(plan.accruedInterest)) : "Wyłączone") + "</strong></div><div><span>Prognozowana spłata</span><strong>" + escapeHTML(projected) + "</strong></div></div>" +
         "<div class=\"target-footer\">" + status + "<span class=\"target-tag\">do " + escapeHTML(formattedDate(debt.deadline)) + "</span></div>" +
         "<div class=\"target-actions\"><button class=\"button button-primary compact-button\" type=\"button\" data-pay-debt=\"" + escapeHTML(debt.id) + "\">Dodaj ratę</button>" +
         "<button class=\"text-button\" type=\"button\" data-history-debt=\"" + escapeHTML(debt.id) + "\">Historia</button></div></article>";
@@ -1218,7 +1415,7 @@
       var nextLabel = recurring.active ? (next ? formattedDate(isoDate(next)) : "Brak kolejnego terminu") : "Harmonogram wstrzymany";
       return "<div class=\"automation-item " + (recurring.active ? "" : "is-inactive") + "\">" +
         "<div class=\"automation-icon " + (recurring.type === "income" ? "is-income" : "is-expense") + "\">" + (recurring.type === "income" ? "↑" : "↓") + "</div>" +
-        "<div class=\"automation-main\"><strong>" + escapeHTML(recurring.name) + "</strong><span>" + escapeHTML(recurring.category + " • " + schedule + " • " + nextLabel) + "</span></div>" +
+        "<div class=\"automation-main\"><strong>" + escapeHTML(recurring.name) + "</strong><span>" + escapeHTML(recurring.category + " • " + accountName(recurring.accountId) + " • " + schedule + " • " + nextLabel) + "</span></div>" +
         "<strong class=\"automation-amount " + (recurring.type === "expense" ? "is-out" : "") + "\">" + (recurring.type === "income" ? "+" : "−") + escapeHTML(money(recurring.amount)) + "</strong>" +
         "<div class=\"row-actions\"><button class=\"tiny-button\" type=\"button\" data-edit-recurring=\"" + escapeHTML(recurring.id) + "\" aria-label=\"Edytuj cykliczny wpis\"><svg viewBox=\"0 0 24 24\"><path d=\"m4 20 4-1 11-11-3-3L5 16l-1 4Z\"></path></svg></button>" +
         "<button class=\"tiny-button is-delete\" type=\"button\" data-delete-recurring=\"" + escapeHTML(recurring.id) + "\" aria-label=\"Usuń cykliczny wpis\"><svg viewBox=\"0 0 24 24\"><path d=\"M5 7h14M9 7V4h6v3m-8 0 1 13h8l1-13\"></path></svg></button></div></div>";
@@ -1248,7 +1445,7 @@
     var start = startOfMonth(currentYear(), month);
     var end = endOfMonth(currentYear(), month);
     var events = [];
-    data.recurring.filter(function (item) { return item.active; }).forEach(function (recurring) {
+    (modules().recurring ? data.recurring : []).filter(function (item) { return item.active; }).forEach(function (recurring) {
       recurringOccurrences(recurring, start, end).forEach(function (date) {
         events.push({ date: date, kind: "recurring", title: recurring.name, amount: recurring.amount, direction: recurring.type });
       });
@@ -1298,13 +1495,15 @@
 
   function renderPlan() {
     renderPlanMonthTabs();
-    renderRecurring();
-    renderBudgets();
+    $("#recurring-module-card").hidden = !modules().recurring;
+    $("#budget-module-card").hidden = !modules().categoryBudgets;
+    if (modules().recurring) renderRecurring();
+    if (modules().categoryBudgets) renderBudgets();
     renderCalendar();
   }
 
   function forecastRows() {
-    var balance = number(yearBalance().available);
+    var balance = totalOpeningAvailable();
     var today = startOfToday();
     return MONTHS.map(function (_, month) {
       var actual = monthTransactions(month).reduce(function (sum, transaction) { return sum + impact(transaction).available; }, 0);
@@ -1420,17 +1619,112 @@
     }, 30);
   }
 
+  function accountTypeLabel(type) {
+    if (type === "bank") return "Konto osobiste";
+    if (type === "savings") return "Konto oszczędnościowe";
+    return "Gotówka";
+  }
+
+  function accountVisual(type) {
+    if (type === "bank") return { icon: "B", color: "#3b82f6" };
+    if (type === "savings") return { icon: "S", color: "#8b5cf6" };
+    return { icon: "G", color: "#14b8a6" };
+  }
+
+  function accountBalanceDate() {
+    var today = startOfToday();
+    if (today.getFullYear() === currentYear()) return isoDate(today);
+    return currentYear() + "-12-31";
+  }
+
+  function renderAccounts() {
+    var accounts = activeAccounts(true);
+    var throughDate = accountBalanceDate();
+    var total = accounts.reduce(function (sum, account) { return sum + accountBalance(account, throughDate); }, 0);
+    var cash = accounts.filter(function (account) { return account.type === "cash"; }).reduce(function (sum, account) { return sum + accountBalance(account, throughDate); }, 0);
+    var bank = accounts.filter(function (account) { return account.type !== "cash"; }).reduce(function (sum, account) { return sum + accountBalance(account, throughDate); }, 0);
+    var imported = data.transactions.filter(function (transaction) { return transaction.source === "statement"; }).length;
+    $("#accounts-summary").innerHTML =
+      "<div class=\"summary-item\"><span>Wszystkie środki</span><strong>" + escapeHTML(money(total)) + "</strong></div>" +
+      "<div class=\"summary-item\"><span>Gotówka</span><strong>" + escapeHTML(money(cash)) + "</strong></div>" +
+      "<div class=\"summary-item\"><span>Konta bankowe</span><strong>" + escapeHTML(money(bank)) + "</strong></div>" +
+      "<div class=\"summary-item\"><span>Zaimportowane operacje</span><strong>" + imported + "</strong></div>";
+    $("#import-statement").hidden = !modules().statementImport;
+    var node = $("#accounts-grid");
+    if (!accounts.length) {
+      node.innerHTML = "<div class=\"empty-targets\"><div><strong>Brak kont</strong><span>Dodaj gotówkę albo konto bankowe, aby przypisywać do niego operacje.</span></div></div>";
+      return;
+    }
+    node.innerHTML = accounts.map(function (account, index) {
+      var visual = accountVisual(account.type);
+      var balance = accountBalance(account, throughDate);
+      var movement = balance - accountOpening(account);
+      var sourceCount = data.transactions.filter(function (transaction) { return transaction.accountId === account.id || transaction.toAccountId === account.id; }).length;
+      return "<article class=\"account-card " + (account.active === false ? "is-inactive" : "") + "\" style=\"--account-color:" + visual.color + ";animation-delay:" + (index * .05) + "s\">" +
+        "<div class=\"account-head\"><div><div class=\"account-icon\">" + visual.icon + "</div><div><h3>" + escapeHTML(account.name) + "</h3><p>" + escapeHTML(accountTypeLabel(account.type)) + (account.active === false ? " • nieaktywne" : "") + "</p></div></div>" +
+        "<div class=\"row-actions\"><button class=\"tiny-button\" type=\"button\" data-edit-account=\"" + escapeHTML(account.id) + "\" aria-label=\"Edytuj konto\"><svg viewBox=\"0 0 24 24\"><path d=\"m4 20 4-1 11-11-3-3L5 16l-1 4Z\"></path></svg></button>" +
+        "<button class=\"tiny-button is-delete\" type=\"button\" data-delete-account=\"" + escapeHTML(account.id) + "\" aria-label=\"Usuń konto\"><svg viewBox=\"0 0 24 24\"><path d=\"M5 7h14M9 7V4h6v3m-8 0 1 13h8l1-13\"></path></svg></button></div></div>" +
+        "<div class=\"account-balance-row\"><div><span>Aktualne saldo</span><strong class=\"" + (balance < 0 ? "negative" : "") + "\">" + escapeHTML(money(balance)) + "</strong></div><span>" + (movement >= 0 ? "+" : "") + escapeHTML(money(movement)) + " w roku</span></div>" +
+        "<div class=\"account-footer\"><span>Saldo 1 stycznia: " + escapeHTML(money(accountOpening(account))) + "</span><span>" + sourceCount + (sourceCount === 1 ? " operacja" : " operacji") + "</span></div></article>";
+    }).join("");
+  }
+
+  function renderUpdateStatus() {
+    var status = updateStatus || { state: "disabled", message: "Kanał aktualizacji zostanie aktywowany przy publikacji programu." };
+    var labels = {
+      disabled: "Nieaktywne", idle: "Gotowe", checking: "Sprawdzanie…", available: "Pobieranie…",
+      downloaded: "Gotowa", current: "Aktualna", error: "Błąd"
+    };
+    $("#desktop-app-version").textContent = appInfo && appInfo.version ? appInfo.version : "wersja lokalna";
+    $("#update-status").textContent = labels[status.state] || "Status";
+    $("#update-status").className = "status-badge " + (status.state === "error" ? "is-overdue" : status.state === "downloaded" || status.state === "current" ? "is-done" : "");
+    $("#update-message").textContent = status.message || "";
+    $("#install-update").hidden = status.state !== "downloaded";
+    $("#check-updates").disabled = status.state === "disabled" || status.state === "checking" || status.state === "available";
+  }
+
+  function applyModuleVisibility() {
+    var config = modules();
+    $("#accounts-nav").hidden = !config.bankAccounts;
+    $("#import-statement").hidden = !config.bankAccounts || !config.statementImport;
+    $("#recurring-module-card").hidden = !config.recurring;
+    $("#budget-module-card").hidden = !config.categoryBudgets;
+    $("#debt-interest-enabled").closest("label").hidden = !config.interest;
+    var transferOption = $("#transaction-type option[value=\"transfer\"]");
+    if (transferOption) transferOption.hidden = !config.bankAccounts;
+    if (state.page === "accounts" && !config.bankAccounts) setPage("dashboard");
+  }
+
   function renderSettings() {
     var balance = yearBalance();
+    var cashAccount = mainCashAccount();
     $("#settings-year").value = currentYear();
-    $("#settings-available").value = number(balance.available);
+    $("#settings-available").value = cashAccount && cashAccount.openingBalances[String(currentYear())] != null ? number(cashAccount.openingBalances[String(currentYear())]) : number(balance.available);
+    $("#settings-available-label").textContent = modules().bankAccounts ? "Gotówka główna 1 stycznia" : "Gotówka dostępna 1 stycznia";
     $("#settings-reserve").value = number(balance.reserve);
     $("#settings-categories").value = data.settings.categories.join("\n");
+    $("#module-bank-accounts").checked = !!modules().bankAccounts;
+    $("#module-statement-import").checked = !!modules().statementImport;
+    $("#module-statement-import").disabled = !modules().bankAccounts;
+    $("#module-alerts").checked = !!modules().alerts;
+    $("#module-daily-limit").checked = !!modules().dailyLimit;
+    $("#module-weekly-limit").checked = !!modules().weeklyLimit;
+    $("#module-interest").checked = !!modules().interest;
+    $("#module-recurring").checked = !!modules().recurring;
+    $("#module-category-budgets").checked = !!modules().categoryBudgets;
+    $("#settings-payday-day").value = number(data.settings.payday && data.settings.payday.day) || 10;
+    $("#settings-next-payday").value = String(data.settings.payday && data.settings.payday.nextDate || "");
+    if (appInfo) {
+      $("#desktop-data-file").textContent = String(appInfo.dataPath || "portfel.sqlite").split(/[\\/]/).pop();
+      $("#desktop-data-path").textContent = appInfo.dataPath || "Lokalna baza danych";
+    }
     $("#settings-error").textContent = "";
     renderBackups();
+    renderUpdateStatus();
   }
 
   function renderAll() {
+    applyModuleVisibility();
     renderNavCounts();
     renderDashboard();
     if (state.page === "months") renderMonths();
@@ -1438,6 +1732,7 @@
     if (state.page === "debts") renderDebts();
     if (state.page === "plan") renderPlan();
     if (state.page === "analytics") renderAnalytics();
+    if (state.page === "accounts") renderAccounts();
     if (state.page === "settings") renderSettings();
     updateSaveState();
   }
@@ -1474,10 +1769,14 @@
     var target = $("#transaction-target");
     var goalType = type === "goal" || type === "goal_withdraw";
     var targetType = goalType || type === "debt";
-    categoryField.hidden = targetType || type === "reserve_in" || type === "reserve_out";
+    var transfer = type === "transfer";
+    categoryField.hidden = targetType || transfer || type === "reserve_in" || type === "reserve_out";
     targetField.hidden = !targetType;
+    $("#transaction-account-field").hidden = !modules().bankAccounts && !transfer;
+    $("#transaction-to-account-field").hidden = !transfer;
     $("#transaction-category").required = type === "income" || type === "expense";
     target.required = targetType;
+    $("#transaction-to-account").required = transfer;
     if (!targetType) return;
     var items = goalType ? data.goals : data.debts;
     $("#transaction-target-label").textContent = goalType ? "Cel" : "Dług";
@@ -1499,6 +1798,24 @@
     if (data.settings.categories.indexOf(current) >= 0) $("#transaction-category").value = current;
   }
 
+  function fillAccountOptions() {
+    var transactionCurrent = $("#transaction-account").value;
+    var destinationCurrent = $("#transaction-to-account").value;
+    var recurringCurrent = $("#recurring-account").value;
+    var accounts = activeAccounts();
+    var options = accounts.map(function (account) {
+      return "<option value=\"" + escapeHTML(account.id) + "\">" + escapeHTML(account.name + " • " + accountTypeLabel(account.type)) + "</option>";
+    }).join("");
+    if (!options) options = "<option value=\"\">Brak aktywnego konta</option>";
+    $("#transaction-account").innerHTML = options;
+    $("#transaction-to-account").innerHTML = options;
+    $("#recurring-account").innerHTML = options;
+    if (accounts.some(function (account) { return account.id === transactionCurrent; })) $("#transaction-account").value = transactionCurrent;
+    if (accounts.some(function (account) { return account.id === destinationCurrent; })) $("#transaction-to-account").value = destinationCurrent;
+    else if (accounts.length > 1) $("#transaction-to-account").value = accounts[1].id;
+    if (accounts.some(function (account) { return account.id === recurringCurrent; })) $("#recurring-account").value = recurringCurrent;
+  }
+
   function openTransactionDialog(editingId, presetType, presetTarget, presetAmount, presetDate, presetRecurringId) {
     state.editingTransaction = editingId || null;
     state.transactionPreset = null;
@@ -1506,6 +1823,7 @@
     $("#transaction-error").textContent = "";
     setTransactionDateLimits();
     fillCategoryOptions();
+    fillAccountOptions();
     var transaction = editingId ? data.transactions.find(function (item) { return item.id === editingId; }) : null;
     if (transaction) {
       var date = dateFromISO(transaction.date);
@@ -1516,6 +1834,8 @@
       renderTransactionOptions();
       $("#transaction-category").value = transaction.category || data.settings.categories[0] || "";
       $("#transaction-target").value = transaction.targetId || "";
+      $("#transaction-account").value = transaction.accountId || mainCashAccount().id;
+      $("#transaction-to-account").value = transaction.toAccountId || "";
       $("#transaction-description").value = transaction.description || "";
       $("#transaction-amount").value = transaction.amount;
       $("#transaction-note").value = transaction.note || "";
@@ -1533,6 +1853,7 @@
         var recurring = data.recurring.find(function (item) { return item.id === presetRecurringId; });
         if (recurring) {
           $("#transaction-category").value = recurring.category;
+          $("#transaction-account").value = recurring.accountId || mainCashAccount().id;
           $("#transaction-description").value = recurring.name;
           state.transactionPreset = { recurringId: recurring.id, scheduledDate: presetDate || "" };
         }
@@ -1556,12 +1877,22 @@
     var amount = number($("#transaction-amount").value);
     var date = $("#transaction-date").value;
     var targetId = $("#transaction-target").value;
+    var accountId = $("#transaction-account").value || (mainCashAccount() && mainCashAccount().id);
+    var toAccountId = $("#transaction-to-account").value;
     if (!transactionDateValid(date)) {
       error.textContent = "Data musi należeć do wybranego miesiąca.";
       return;
     }
     if (!(amount > 0)) {
       error.textContent = "Kwota musi być większa od zera.";
+      return;
+    }
+    if (!data.accounts.some(function (account) { return account.id === accountId; })) {
+      error.textContent = "Wybierz konto dla tej operacji.";
+      return;
+    }
+    if (type === "transfer" && (!modules().bankAccounts || !data.accounts.some(function (account) { return account.id === toAccountId; }) || accountId === toAccountId)) {
+      error.textContent = "Wybierz dwa różne konta dla transferu.";
       return;
     }
     if (type === "goal") {
@@ -1593,7 +1924,7 @@
         return;
       }
       var debtLeft = debtRemaining(debt, state.editingTransaction);
-      var nextInterest = debtLeft * Math.max(0, number(debt.apr)) / 1200;
+      var nextInterest = modules().interest && debt.interestEnabled ? debtLeft * Math.max(0, number(debt.apr)) / 1200 : 0;
       if (amount > debtLeft + nextInterest + .0001) {
         error.textContent = "Wpłata przekracza pozostałe saldo wraz z odsetkami za najbliższy okres.";
         return;
@@ -1611,6 +1942,10 @@
       description: $("#transaction-description").value.trim(),
       amount: amount,
       note: $("#transaction-note").value.trim(),
+      accountId: accountId,
+      toAccountId: type === "transfer" ? toAccountId : "",
+      importFingerprint: existing ? existing.importFingerprint || "" : "",
+      source: existing ? existing.source || "manual" : "manual",
       createdAt: existing ? existing.createdAt : new Date().toISOString()
     };
     if (existing) {
@@ -1754,16 +2089,25 @@
       $("#debt-total").value = debt.total;
       $("#debt-deadline").value = debt.deadline || "";
       $("#debt-apr").value = number(debt.apr);
+      $("#debt-interest-enabled").checked = modules().interest && debt.interestEnabled !== false && number(debt.apr) > 0;
       $("#debt-minimum-payment").value = number(debt.minimumPayment);
       $("#debt-payment-day").value = number(debt.paymentDay) || 1;
       $("#debt-dialog-title").textContent = "Edytuj dług";
     } else {
       $("#debt-apr").value = 0;
+      $("#debt-interest-enabled").checked = false;
       $("#debt-minimum-payment").value = 0;
       $("#debt-payment-day").value = 1;
       $("#debt-dialog-title").textContent = "Dodaj dług";
     }
+    updateDebtInterestField();
     openDialog("debt-dialog");
+  }
+
+  function updateDebtInterestField() {
+    var enabled = modules().interest && $("#debt-interest-enabled").checked;
+    $("#debt-apr-field").hidden = !enabled;
+    $("#debt-apr").required = enabled;
   }
 
   function submitDebt(event) {
@@ -1771,7 +2115,9 @@
     var name = $("#debt-name").value.trim();
     var total = number($("#debt-total").value);
     var deadline = $("#debt-deadline").value;
-    var apr = number($("#debt-apr").value);
+    var existing = data.debts.find(function (item) { return item.id === state.editingDebt; });
+    var interestEnabled = modules().interest ? $("#debt-interest-enabled").checked : !!(existing && existing.interestEnabled);
+    var apr = modules().interest ? (interestEnabled ? number($("#debt-apr").value) : 0) : number(existing && existing.apr);
     var minimumPayment = number($("#debt-minimum-payment").value);
     var paymentDay = Math.round(number($("#debt-payment-day").value));
     var error = $("#debt-error");
@@ -1784,18 +2130,18 @@
       error.textContent = "Sprawdź oprocentowanie, minimalną ratę i dzień płatności.";
       return;
     }
-    var alreadyPaid = state.editingDebt ? targetPaid("debt", state.editingDebt) : 0;
-    if (total + .0001 < alreadyPaid) {
-      error.textContent = "Kwota długu nie może być niższa niż już spłacona suma.";
+    var principalPaid = existing ? Math.max(0, number(existing.total) - Math.min(number(existing.total), debtRemaining(existing))) : 0;
+    if (total + .0001 < principalPaid) {
+      error.textContent = "Kwota długu nie może być niższa niż spłacony kapitał.";
       return;
     }
-    var existing = data.debts.find(function (item) { return item.id === state.editingDebt; });
     var debt = {
       id: existing ? existing.id : uid("debt"),
       name: name,
       total: total,
       deadline: deadline,
       apr: apr,
+      interestEnabled: interestEnabled,
       minimumPayment: minimumPayment,
       paymentDay: paymentDay,
       createdAt: existing ? existing.createdAt : new Date().toISOString()
@@ -1843,12 +2189,14 @@
     $("#recurring-form").reset();
     $("#recurring-error").textContent = "";
     fillPlanningCategoryOptions();
+    fillAccountOptions();
     var recurring = id ? data.recurring.find(function (item) { return item.id === id; }) : null;
     if (recurring) {
       $("#recurring-name").value = recurring.name;
       $("#recurring-type").value = recurring.type;
       $("#recurring-amount").value = recurring.amount;
       $("#recurring-category").value = recurring.category;
+      $("#recurring-account").value = recurring.accountId || mainCashAccount().id;
       $("#recurring-cadence").value = recurring.cadence;
       $("#recurring-day").value = recurring.day;
       $("#recurring-start").value = recurring.startDate;
@@ -1895,6 +2243,7 @@
       type: $("#recurring-type").value === "income" ? "income" : "expense",
       amount: amount,
       category: $("#recurring-category").value,
+      accountId: $("#recurring-account").value || mainCashAccount().id,
       cadence: cadence,
       day: day,
       startDate: startDate,
@@ -1965,6 +2314,203 @@
     renderAll();
   }
 
+  function openAccountDialog(id) {
+    state.editingAccount = id || null;
+    $("#account-form").reset();
+    $("#account-error").textContent = "";
+    var account = id ? data.accounts.find(function (item) { return item.id === id; }) : null;
+    if (account) {
+      $("#account-name").value = account.name;
+      $("#account-type").value = account.type;
+      $("#account-opening").value = accountOpening(account);
+      $("#account-spending-limit").checked = account.includeInSpendingLimit !== false;
+      $("#account-active").checked = account.active !== false;
+      $("#account-dialog-title").textContent = "Edytuj konto";
+    } else {
+      $("#account-type").value = "bank";
+      $("#account-opening").value = 0;
+      $("#account-spending-limit").checked = true;
+      $("#account-active").checked = true;
+      $("#account-dialog-title").textContent = "Dodaj konto";
+    }
+    openDialog("account-dialog");
+  }
+
+  function submitAccount(event) {
+    event.preventDefault();
+    var name = $("#account-name").value.trim();
+    var type = $("#account-type").value;
+    var opening = number($("#account-opening").value);
+    var error = $("#account-error");
+    error.textContent = "";
+    if (!name || ["cash", "bank", "savings"].indexOf(type) < 0) {
+      error.textContent = "Podaj nazwę i prawidłowy rodzaj konta.";
+      return;
+    }
+    var existing = data.accounts.find(function (item) { return item.id === state.editingAccount; });
+    var otherCash = data.accounts.some(function (item) { return item.type === "cash" && (!existing || item.id !== existing.id); });
+    if (existing && existing.type === "cash" && type !== "cash" && !otherCash) {
+      error.textContent = "Zostaw przynajmniej jedno miejsce typu Gotówka.";
+      return;
+    }
+    var openings = existing ? Object.assign({}, existing.openingBalances) : {};
+    openings[String(currentYear())] = opening;
+    var account = {
+      id: existing ? existing.id : uid("account"),
+      name: name,
+      type: type,
+      currency: "PLN",
+      openingBalances: openings,
+      active: $("#account-active").checked,
+      includeInSpendingLimit: $("#account-spending-limit").checked,
+      createdAt: existing ? existing.createdAt : new Date().toISOString()
+    };
+    if (existing) data.accounts = data.accounts.map(function (item) { return item.id === existing.id ? account : item; });
+    else data.accounts.push(account);
+    var cash = mainCashAccount();
+    if (cash) data.settings.balances[String(currentYear())].available = accountOpening(cash);
+    state.editingAccount = null;
+    closeDialog("account-dialog");
+    markDirty(existing ? "Zmieniono konto." : "Dodano konto.");
+    renderAll();
+  }
+
+  function deleteAccount(id) {
+    var account = data.accounts.find(function (item) { return item.id === id; });
+    if (!account) return;
+    if (data.transactions.some(function (transaction) { return transaction.accountId === id || transaction.toAccountId === id; }) || data.recurring.some(function (item) { return item.accountId === id; })) {
+      showToast("Konto ma powiązane operacje lub harmonogram. Ustaw je jako nieaktywne zamiast usuwać.");
+      return;
+    }
+    if (account.type === "cash" && !data.accounts.some(function (item) { return item.id !== id && item.type === "cash"; })) {
+      showToast("Program potrzebuje przynajmniej jednego miejsca typu Gotówka.");
+      return;
+    }
+    if (!window.confirm("Usunąć konto „" + account.name + "”?")) return;
+    data.accounts = data.accounts.filter(function (item) { return item.id !== id; });
+    markDirty("Usunięto konto.");
+    renderAll();
+  }
+
+  function statementSuggestedType(row) {
+    if (number(row.amount) < 0 && /(^|\s)(atm|bankomat)|wypłat.*gotówk/i.test(String(row.description || ""))) return "transfer";
+    return number(row.amount) >= 0 ? "income" : "expense";
+  }
+
+  function openStatementImport(accountId) {
+    if (!desktop || !modules().bankAccounts || !modules().statementImport) {
+      showToast("Włącz konta bankowe i import wyciągów w ustawieniach.");
+      return;
+    }
+    var banks = activeAccounts().filter(function (account) { return account.type !== "cash"; });
+    if (!banks.length) {
+      showToast("Najpierw dodaj aktywne konto bankowe.");
+      return;
+    }
+    $("#statement-account").innerHTML = banks.map(function (account) {
+      return "<option value=\"" + escapeHTML(account.id) + "\">" + escapeHTML(account.name) + "</option>";
+    }).join("");
+    $("#statement-account").disabled = false;
+    if (banks.some(function (account) { return account.id === accountId; })) $("#statement-account").value = accountId;
+    state.statementPreview = null;
+    $("#statement-file-name").textContent = "—";
+    $("#statement-summary").textContent = "Wybierz plik CSV wyeksportowany z banku";
+    $("#statement-warnings").innerHTML = "";
+    $("#statement-preview-body").innerHTML = "<tr><td colspan=\"6\" class=\"empty-table-cell\">Plik nie został jeszcze wybrany.</td></tr>";
+    $("#confirm-statement-import").disabled = true;
+    openDialog("statement-dialog");
+  }
+
+  async function chooseStatementFile() {
+    if (!desktop) return;
+    var accountId = $("#statement-account").value;
+    var fingerprints = data.transactions.map(function (transaction) { return transaction.importFingerprint; }).filter(Boolean);
+    $("#choose-statement-file").disabled = true;
+    $("#statement-summary").textContent = "Odczytywanie pliku…";
+    try {
+      var result = await desktop.statements.preview(accountId, fingerprints);
+      if (!result || result.canceled) {
+        $("#statement-summary").textContent = "Nie wybrano pliku";
+        return;
+      }
+      if (!result.ok) throw new Error(result.error || "Nie udało się odczytać wyciągu.");
+      state.statementPreview = { accountId: accountId, result: result };
+      renderStatementPreview();
+    } catch (error) {
+      state.statementPreview = null;
+      $("#statement-summary").textContent = "Nie udało się odczytać pliku";
+      $("#statement-preview-body").innerHTML = "<tr><td colspan=\"6\" class=\"empty-table-cell\">" + escapeHTML(error.message || String(error)) + "</td></tr>";
+      $("#confirm-statement-import").disabled = true;
+    } finally {
+      $("#choose-statement-file").disabled = false;
+    }
+  }
+
+  function renderStatementPreview() {
+    var preview = state.statementPreview;
+    if (!preview) return;
+    var result = preview.result;
+    $("#statement-account").disabled = true;
+    var fresh = result.rows.filter(function (row) { return !row.duplicate; }).length;
+    $("#statement-file-name").textContent = result.fileName;
+    $("#statement-summary").textContent = fresh + " nowych • " + (result.rows.length - fresh) + " duplikatów • separator: " + result.delimiter;
+    $("#statement-warnings").innerHTML = (result.warnings || []).map(function (warning) { return "<div>! " + escapeHTML(warning) + "</div>"; }).join("");
+    $("#statement-preview-body").innerHTML = result.rows.map(function (row, index) {
+      var suggested = statementSuggestedType(row);
+      var typeOptions = [
+        ["income", "Wpływ"], ["expense", "Wydatek"], ["transfer", "Transfer do gotówki"]
+      ].map(function (option) {
+        return "<option value=\"" + option[0] + "\" " + (suggested === option[0] ? "selected" : "") + ">" + option[1] + "</option>";
+      }).join("");
+      return "<tr class=\"" + (row.duplicate ? "is-muted" : "") + "\"><td><input class=\"statement-check\" data-statement-index=\"" + index + "\" type=\"checkbox\" " + (row.duplicate ? "disabled" : "checked") + "></td>" +
+        "<td data-label=\"Data\">" + escapeHTML(formattedDate(row.date)) + "</td>" +
+        "<td data-label=\"Rodzaj\"><select class=\"statement-type\" data-statement-type=\"" + index + "\" " + (row.duplicate ? "disabled" : "") + ">" + typeOptions + "</select></td>" +
+        "<td data-label=\"Opis\">" + escapeHTML(row.description) + "</td>" +
+        "<td data-label=\"Kwota\" class=\"amount " + (number(row.amount) < 0 ? "is-out" : "") + "\">" + escapeHTML(money(Math.abs(number(row.amount)))) + "</td>" +
+        "<td data-label=\"Status\"><span class=\"status-badge " + (row.duplicate ? "" : "is-done") + "\">" + (row.duplicate ? "Duplikat" : "Nowa") + "</span></td></tr>";
+    }).join("");
+    result.rows.forEach(function (row, index) {
+      var select = $("[data-statement-type=\"" + index + "\"]");
+      if (select) select.value = statementSuggestedType(row);
+    });
+    $("#confirm-statement-import").disabled = fresh === 0;
+  }
+
+  function confirmStatementImport() {
+    var preview = state.statementPreview;
+    if (!preview) return;
+    var cash = mainCashAccount();
+    var existing = new Set(data.transactions.map(function (transaction) { return transaction.importFingerprint; }).filter(Boolean));
+    var added = 0;
+    $$(".statement-check:checked").forEach(function (checkbox) {
+      var index = Number(checkbox.getAttribute("data-statement-index"));
+      var row = preview.result.rows[index];
+      if (!row || row.duplicate || existing.has(row.fingerprint)) return;
+      var typeNode = $("[data-statement-type=\"" + index + "\"]");
+      var type = typeNode ? typeNode.value : statementSuggestedType(row);
+      if (type === "transfer" && (!cash || cash.id === preview.accountId)) type = "expense";
+      var category = "";
+      if (type === "income") category = data.settings.categories.indexOf(row.category) >= 0 ? row.category : (data.settings.categories.indexOf("Dodatkowy wpływ") >= 0 ? "Dodatkowy wpływ" : data.settings.categories[0]);
+      if (type === "expense") category = data.settings.categories.indexOf(row.category) >= 0 ? row.category : (data.settings.categories.indexOf("Inne") >= 0 ? "Inne" : data.settings.categories[0]);
+      data.transactions.push({
+        id: uid("tx"), date: row.date, type: type, category: category, targetId: "", recurringId: "", scheduledDate: "",
+        description: row.description, amount: Math.abs(number(row.amount)), note: "Import z wyciągu: " + preview.result.fileName,
+        accountId: preview.accountId, toAccountId: type === "transfer" ? cash.id : "", importFingerprint: row.fingerprint,
+        source: "statement", createdAt: new Date().toISOString()
+      });
+      existing.add(row.fingerprint);
+      added += 1;
+    });
+    if (!added) {
+      showToast("Nie zaznaczono nowych operacji.");
+      return;
+    }
+    closeDialog("statement-dialog");
+    state.statementPreview = null;
+    markDirty("Dodano " + added + (added === 1 ? " operację z wyciągu." : " operacji z wyciągu."));
+    renderAll();
+  }
+
   function openTargetHistory(kind, id) {
     var target = kind === "goal" ? data.goals.find(function (item) { return item.id === id; }) : data.debts.find(function (item) { return item.id === id; });
     if (!target) return;
@@ -1998,6 +2544,11 @@
     }
     data.settings.currentYear = year;
     data.settings.balances[String(year)] = { available: available, reserve: reserve };
+    var cash = mainCashAccount();
+    if (cash) cash.openingBalances[String(year)] = available;
+    data.accounts.forEach(function (account) {
+      if (account.openingBalances[String(year)] == null) account.openingBalances[String(year)] = 0;
+    });
     data.settings.categories = categories;
     state.month = year === new Date().getFullYear() ? new Date().getMonth() : 0;
     state.planMonth = state.month;
@@ -2009,11 +2560,45 @@
   function yearSettingChanged() {
     var year = Math.round(number($("#settings-year").value));
     var balance = data.settings.balances[String(year)] || { available: 0, reserve: 0 };
-    $("#settings-available").value = number(balance.available);
+    var cash = mainCashAccount();
+    $("#settings-available").value = cash && cash.openingBalances[String(year)] != null ? number(cash.openingBalances[String(year)]) : number(balance.available);
     $("#settings-reserve").value = number(balance.reserve);
   }
 
-  function exportData() {
+  function saveModuleSettings() {
+    var day = Math.round(number($("#settings-payday-day").value));
+    var nextDate = $("#settings-next-payday").value;
+    if (day < 1 || day > 31) {
+      showToast("Dzień wypłaty musi mieścić się od 1 do 31.");
+      return;
+    }
+    var bankAccounts = $("#module-bank-accounts").checked;
+    data.settings.modules = {
+      bankAccounts: bankAccounts,
+      statementImport: bankAccounts && $("#module-statement-import").checked,
+      alerts: $("#module-alerts").checked,
+      dailyLimit: $("#module-daily-limit").checked,
+      weeklyLimit: $("#module-weekly-limit").checked,
+      interest: $("#module-interest").checked,
+      recurring: $("#module-recurring").checked,
+      categoryBudgets: $("#module-category-budgets").checked
+    };
+    data.settings.payday = { day: day, nextDate: nextDate };
+    markDirty("Zastosowano moduły programu.");
+    renderAll();
+    setPage("settings");
+  }
+
+  async function exportData() {
+    if (desktop) {
+      try {
+        var result = await desktop.data.export(data);
+        if (result && result.ok) showToast("Wyeksportowano kopię danych.");
+      } catch (error) {
+        showToast("Nie udało się wyeksportować kopii: " + (error.message || error));
+      }
+      return;
+    }
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
     var link = document.createElement("a");
@@ -2026,10 +2611,17 @@
     showToast("Wyeksportowano kopię danych.");
   }
 
-  function importData(file) {
-    if (!file) return;
-    file.text().then(function (text) {
-      var parsed = JSON.parse(text);
+  async function importData(file) {
+    try {
+      var parsed;
+      if (desktop) {
+        var result = await desktop.data.import();
+        if (!result || result.canceled) return;
+        parsed = result.data;
+      } else {
+        if (!file) return;
+        parsed = JSON.parse(await file.text());
+      }
       if (!parsed || !parsed.settings || !Array.isArray(parsed.goals) || !Array.isArray(parsed.debts) || !Array.isArray(parsed.transactions)) {
         throw new Error("Nieprawidłowy format pliku");
       }
@@ -2040,11 +2632,21 @@
       markDirty("Wczytano kopię.");
       renderAll();
       setPage("dashboard");
-    }).catch(function () {
+    } catch (error) {
       showToast("Nie udało się wczytać tej kopii.");
-    }).finally(function () {
+    } finally {
       $("#import-file").value = "";
-    });
+    }
+  }
+
+  async function checkForUpdates() {
+    if (!desktop) return;
+    try {
+      updateStatus = await desktop.updater.check();
+      renderUpdateStatus();
+    } catch (error) {
+      showToast("Nie udało się sprawdzić aktualizacji.");
+    }
   }
 
   function resetData() {
@@ -2187,6 +2789,16 @@
       deleteBudget(deleteBudgetButton.getAttribute("data-delete-budget"));
       return;
     }
+    var editAccountButton = event.target.closest("[data-edit-account]");
+    if (editAccountButton) {
+      openAccountDialog(editAccountButton.getAttribute("data-edit-account"));
+      return;
+    }
+    var deleteAccountButton = event.target.closest("[data-delete-account]");
+    if (deleteAccountButton) {
+      deleteAccount(deleteAccountButton.getAttribute("data-delete-account"));
+      return;
+    }
     var restoreButton = event.target.closest("[data-restore-backup]");
     if (restoreButton) {
       restoreBackup(restoreButton.getAttribute("data-restore-backup"));
@@ -2211,23 +2823,44 @@
     $("#add-debt").addEventListener("click", function () { openDebtDialog(); });
     $("#add-recurring").addEventListener("click", function () { openRecurringDialog(); });
     $("#add-budget").addEventListener("click", function () { openBudgetDialog(); });
+    $("#add-account").addEventListener("click", function () { openAccountDialog(); });
+    $("#import-statement").addEventListener("click", function () { openStatementImport(); });
+    $("#choose-statement-file").addEventListener("click", chooseStatementFile);
+    $("#confirm-statement-import").addEventListener("click", confirmStatementImport);
     $("#transaction-type").addEventListener("change", renderTransactionOptions);
     $("#goal-cadence").addEventListener("change", updateGoalCadenceFields);
     $("#recurring-cadence").addEventListener("change", updateRecurringCadenceFields);
+    $("#debt-interest-enabled").addEventListener("change", updateDebtInterestField);
     $("#transaction-form").addEventListener("submit", submitTransaction);
     $("#goal-form").addEventListener("submit", submitGoal);
     $("#debt-form").addEventListener("submit", submitDebt);
     $("#recurring-form").addEventListener("submit", submitRecurring);
     $("#budget-form").addEventListener("submit", submitBudget);
+    $("#account-form").addEventListener("submit", submitAccount);
     $("#settings-form").addEventListener("submit", submitSettings);
     $("#settings-year").addEventListener("change", yearSettingChanged);
     $("#export-data").addEventListener("click", exportData);
-    $("#import-data").addEventListener("click", function () { $("#import-file").click(); });
+    $("#import-data").addEventListener("click", function () {
+      if (desktop) importData();
+      else $("#import-file").click();
+    });
     $("#import-file").addEventListener("change", function (event) {
       importData(event.target.files && event.target.files[0]);
     });
     $("#reset-data").addEventListener("click", resetData);
     $("#refresh-backups").addEventListener("click", function () { loadBackups(false); });
+    $("#save-module-settings").addEventListener("click", saveModuleSettings);
+    $("#module-bank-accounts").addEventListener("change", function () {
+      $("#module-statement-import").disabled = !this.checked;
+      if (!this.checked) $("#module-statement-import").checked = false;
+    });
+    $("#open-data-folder").addEventListener("click", function () {
+      if (desktop) desktop.app.openDataFolder().then(function (message) {
+        if (message) showToast("Nie udało się otworzyć folderu: " + message);
+      });
+    });
+    $("#check-updates").addEventListener("click", checkForUpdates);
+    $("#install-update").addEventListener("click", function () { if (desktop) desktop.updater.install(); });
     $("#print-month").addEventListener("click", function () { printReport("month"); });
     $("#print-year").addEventListener("click", function () { printReport("year"); });
     document.addEventListener("keydown", function (event) {
@@ -2245,6 +2878,12 @@
       event.preventDefault();
       event.returnValue = "";
     });
+    if (desktop) {
+      desktop.updater.onStatus(function (status) {
+        updateStatus = status;
+        if (data) renderUpdateStatus();
+      });
+    }
   }
 
   bindEvents();

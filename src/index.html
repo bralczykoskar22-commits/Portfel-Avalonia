@@ -2,6 +2,7 @@
 <html lang="pl" data-theme="light">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="Lokalny budżet gotówkowy z celami, długami i zapisem do pliku.">
@@ -23,8 +24,8 @@
   <div id="connection-error" class="connection-error" hidden>
     <div class="connection-card">
       <div class="connection-icon" aria-hidden="true">!</div>
-      <h1>Uruchom aplikację przez plik startowy</h1>
-      <p>Przeglądarka nie ma dostępu do lokalnego pliku danych. Zamknij tę kartę i uruchom <strong>start.bat</strong> albo <strong>start.sh</strong>.</p>
+      <h1>Nie udało się uruchomić lokalnych danych</h1>
+      <p>Program nie może otworzyć bazy. Spróbuj ponownie, a jeśli problem pozostanie, otwórz folder danych w ustawieniach.</p>
       <button id="retry-connection" class="button button-primary" type="button">Spróbuj ponownie</button>
     </div>
   </div>
@@ -69,6 +70,11 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10m7 10V4m7 16v-7"></path><path d="M3 20h18"></path></svg>
           <span>Analizy</span>
         </button>
+        <button id="accounts-nav" class="nav-button" type="button" data-view="accounts" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h18M5 9v9m4-9v9m6-9v9m4-9v9M3 19h18M12 3 3 7h18l-9-4Z"></path></svg>
+          <span>Konta</span>
+          <span id="accounts-nav-count" class="nav-count">0</span>
+        </button>
         <button class="nav-button" type="button" data-view="settings">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1v.1h-4V21a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.87.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1-.4h-.1v-4H3a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.34-1.87l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1v-.1h4V3a1.7 1.7 0 0 0 1.1 1.6 1.7 1.7 0 0 0 1.87-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.17.36.38.7.6 1 .27.3.62.44 1 .4h.1v4H21a1.7 1.7 0 0 0-1.6.6Z"></path></svg>
           <span>Ustawienia</span>
@@ -77,7 +83,7 @@
 
       <div class="sidebar-footer">
         <div class="local-pill"><span class="local-dot"></span> Dane tylko lokalnie</div>
-        <small id="storage-location">Baza: portfel.sqlite</small>
+        <small>Baza: Portfel / SQLite</small>
       </div>
     </aside>
 
@@ -129,10 +135,12 @@
 
           <div id="deadline-alerts" class="alerts" aria-live="polite"></div>
 
+          <div id="spending-limits" class="spending-limits" hidden></div>
+
           <div class="metrics-grid">
             <article class="metric-card metric-teal">
               <div class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M16 11h5v4h-5a2 2 0 1 1 0-4Z"></path></svg></div>
-              <span>Gotówka dostępna</span>
+              <span id="metric-available-label">Gotówka dostępna</span>
               <strong id="metric-available">0 zł</strong>
               <small id="metric-available-note">Na koniec roku</small>
             </article>
@@ -218,7 +226,7 @@
             <div class="table-responsive">
               <table class="data-table">
                 <thead>
-                  <tr><th>Data</th><th>Rodzaj</th><th>Powiązanie</th><th>Opis</th><th>Kwota</th><th>Saldo dostępne</th><th></th></tr>
+                  <tr><th>Data</th><th>Rodzaj</th><th>Konto</th><th>Powiązanie</th><th>Opis</th><th>Kwota</th><th>Saldo dostępne</th><th></th></tr>
                 </thead>
                 <tbody id="transactions-table"></tbody>
               </table>
@@ -266,7 +274,7 @@
           </div>
 
           <div class="planning-grid">
-            <article class="surface planning-card">
+            <article id="recurring-module-card" class="surface planning-card">
               <div class="surface-header">
                 <div><span class="surface-kicker">Powtarzalne</span><h3>Wpływy i wydatki cykliczne</h3></div>
                 <button id="add-recurring" class="button button-primary" type="button">Dodaj cykliczny wpis</button>
@@ -274,7 +282,7 @@
               <div id="recurring-list" class="automation-list"></div>
             </article>
 
-            <article class="surface planning-card">
+            <article id="budget-module-card" class="surface planning-card">
               <div class="surface-header">
                 <div><span class="surface-kicker">Limity kategorii</span><h3>Koperty na miesiąc</h3></div>
                 <button id="add-budget" class="button button-primary" type="button">Dodaj kopertę</button>
@@ -327,6 +335,31 @@
           </article>
         </section>
 
+        <section class="page" data-page="accounts" hidden>
+          <div class="page-tools">
+            <div>
+              <span class="surface-kicker">Gotówka i bank</span>
+              <h2>Twoje konta</h2>
+            </div>
+            <div class="tool-actions">
+              <button id="import-statement" class="button button-soft" type="button">Importuj wyciąg</button>
+              <button id="add-account" class="button button-primary" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                Dodaj konto
+              </button>
+            </div>
+          </div>
+          <div id="accounts-summary" class="summary-strip"></div>
+          <div id="accounts-grid" class="accounts-grid"></div>
+          <article class="surface bank-explainer">
+            <div class="bank-explainer-icon">✓</div>
+            <div>
+              <h3>Wyciągi są przetwarzane wyłącznie na tym komputerze</h3>
+              <p>Program nie prosi o login ani hasło do banku. Przed importem zawsze zobaczysz podgląd, duplikaty i rozpoznane operacje.</p>
+            </div>
+          </article>
+        </section>
+
         <section class="page" data-page="settings" hidden>
           <div class="settings-grid">
             <article class="surface settings-card">
@@ -340,7 +373,7 @@
                 <label>Rok
                   <input id="settings-year" type="number" min="2020" max="2100" required>
                 </label>
-                <label>Gotówka dostępna 1 stycznia
+                <label><span id="settings-available-label">Gotówka dostępna 1 stycznia</span>
                   <input id="settings-available" type="number" min="0" step="0.01" required>
                 </label>
                 <label>Rezerwa 1 stycznia
@@ -358,13 +391,36 @@
             <article class="surface settings-card">
               <div class="surface-header">
                 <div>
+                  <span class="surface-kicker">Dostosowanie</span>
+                  <h2>Moduły programu</h2>
+                </div>
+              </div>
+              <div class="toggle-list">
+                <label class="toggle-row"><span><strong>Konta bankowe</strong><small>Rachunki, salda i źródło każdej operacji</small></span><input id="module-bank-accounts" type="checkbox"><i></i></label>
+                <label class="toggle-row"><span><strong>Import wyciągów</strong><small>Lokalny podgląd i import plików CSV</small></span><input id="module-statement-import" type="checkbox"><i></i></label>
+                <label class="toggle-row"><span><strong>Ostrzeżenia</strong><small>Terminy celów, długów i przekroczone limity</small></span><input id="module-alerts" type="checkbox"><i></i></label>
+                <label class="toggle-row"><span><strong>Limit dzienny</strong><small>Ile można wydać do kolejnej wypłaty</small></span><input id="module-daily-limit" type="checkbox"><i></i></label>
+                <label class="toggle-row"><span><strong>Limit tygodniowy</strong><small>Tygodniowy odpowiednik bezpiecznej kwoty</small></span><input id="module-weekly-limit" type="checkbox"><i></i></label>
+                <label class="toggle-row"><span><strong>Obsługa odsetek</strong><small>Można je dodatkowo włączyć przy konkretnym długu</small></span><input id="module-interest" type="checkbox"><i></i></label>
+                <label class="toggle-row"><span><strong>Operacje cykliczne</strong><small>Wypłaty, rachunki i abonamenty</small></span><input id="module-recurring" type="checkbox"><i></i></label>
+                <label class="toggle-row"><span><strong>Koperty kategorii</strong><small>Miesięczne limity wydatków</small></span><input id="module-category-budgets" type="checkbox"><i></i></label>
+              </div>
+              <div class="payday-settings">
+                <label>Dzień kolejnej wypłaty w miesiącu<input id="settings-payday-day" type="number" min="1" max="31" value="10"></label>
+                <label>Dokładna następna wypłata<input id="settings-next-payday" type="date"></label>
+              </div>
+              <button id="save-module-settings" class="button button-primary" type="button">Zastosuj moduły</button>
+            </article>
+            <article class="surface settings-card">
+              <div class="surface-header">
+                <div>
                   <span class="surface-kicker">Bezpieczeństwo</span>
                   <h2>Plik danych</h2>
                 </div>
               </div>
               <div class="file-info">
                 <div class="file-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path></svg></div>
-                <div><strong id="storage-file-name">portfel.sqlite</strong><span id="storage-file-description">Lokalna baza SQLite — zapis po kliknięciu „Zapisz”</span></div>
+                <div><strong id="desktop-data-file">portfel.sqlite</strong><span id="desktop-data-path">Zapisywany lokalnie po kliknięciu „Zapisz”</span></div>
               </div>
               <div class="backup-actions">
                 <button id="export-data" class="button button-soft" type="button">Eksportuj kopię</button>
@@ -374,15 +430,30 @@
               </div>
               <div class="privacy-note">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V8a6 6 0 0 1 12 0v2"></path><path d="M5 10h14v11H5z"></path></svg>
-                <p>Aplikacja działa pod adresem 127.0.0.1. Dane nie opuszczają Twojego komputera.</p>
+                <p>Baza, kopie i importowane wyciągi pozostają na Twoim komputerze. Program nie wymaga konta internetowego.</p>
               </div>
+              <button id="open-data-folder" class="button button-soft" type="button">Otwórz folder danych</button>
               <div class="backup-history">
                 <div class="surface-header compact-header">
                   <div><span class="surface-kicker">Historia zapisu</span><h3>Automatyczne kopie</h3></div>
                   <button id="refresh-backups" class="text-button" type="button">Odśwież</button>
                 </div>
-                <p class="helper-copy">Przed każdym nadpisaniem pliku aplikacja zachowuje poprzednią wersję. Przechowywanych jest 20 ostatnich kopii.</p>
+                <p class="helper-copy">Przed każdym nadpisaniem bazy aplikacja zachowuje poprzednią wersję. Przechowywanych jest 30 ostatnich kopii.</p>
                 <div id="backups-list" class="backups-list"></div>
+              </div>
+            </article>
+            <article class="surface settings-card">
+              <div class="surface-header">
+                <div><span class="surface-kicker">Program</span><h2>Wersja i aktualizacje</h2></div>
+              </div>
+              <div class="app-version-card">
+                <div><span>Zainstalowana wersja</span><strong id="desktop-app-version">—</strong></div>
+                <span id="update-status" class="status-badge">Sprawdzanie…</span>
+              </div>
+              <p id="update-message" class="helper-copy">Mechanizm aktualizacji zostanie aktywowany przy publikacji programu.</p>
+              <div class="backup-actions">
+                <button id="check-updates" class="button button-soft" type="button">Sprawdź aktualizacje</button>
+                <button id="install-update" class="button button-primary" type="button" hidden>Zainstaluj i uruchom ponownie</button>
               </div>
             </article>
           </div>
@@ -408,8 +479,11 @@
             <option value="debt">Wpłata na dług</option>
             <option value="reserve_in">Do rezerwy</option>
             <option value="reserve_out">Z rezerwy</option>
+            <option value="transfer">Transfer między kontami</option>
           </select>
         </label>
+        <label id="transaction-account-field">Z konta / do konta<select id="transaction-account" required></select></label>
+        <label id="transaction-to-account-field" hidden>Na konto<select id="transaction-to-account"></select></label>
         <label id="transaction-category-field">Kategoria<select id="transaction-category"></select></label>
         <label id="transaction-target-field" hidden><span id="transaction-target-label">Cel</span><select id="transaction-target"></select></label>
         <label class="form-wide">Opis<input id="transaction-description" type="text" maxlength="100" placeholder="np. wypłata, zakupy, rata"></label>
@@ -464,7 +538,8 @@
         <label class="form-wide">Nazwa długu<input id="debt-name" type="text" maxlength="80" required placeholder="np. pożyczka"></label>
         <label>Kwota do spłaty<input id="debt-total" type="number" min="0.01" step="0.01" required></label>
         <label>Termin spłaty<input id="debt-deadline" type="date" required></label>
-        <label>Oprocentowanie roczne<input id="debt-apr" type="number" min="0" max="1000" step="0.01" value="0"></label>
+        <label class="check-field form-wide"><input id="debt-interest-enabled" type="checkbox"><span>Ten dług ma oprocentowanie</span></label>
+        <label id="debt-apr-field">Oprocentowanie roczne<input id="debt-apr" type="number" min="0" max="1000" step="0.01" value="0"></label>
         <label>Minimalna rata<input id="debt-minimum-payment" type="number" min="0" step="0.01" value="0"></label>
         <label>Dzień raty<input id="debt-payment-day" type="number" min="1" max="31" value="1"></label>
         <span id="debt-error" class="form-error form-wide"></span>
@@ -487,6 +562,7 @@
         <label>Rodzaj<select id="recurring-type"><option value="income">Wpływ</option><option value="expense">Wydatek</option></select></label>
         <label>Kwota<input id="recurring-amount" type="number" min="0.01" step="0.01" required></label>
         <label>Kategoria<select id="recurring-category"></select></label>
+        <label>Źródło<select id="recurring-account"></select></label>
         <label>Częstotliwość<select id="recurring-cadence"><option value="monthly">Co miesiąc</option><option value="weekly">Co tydzień</option></select></label>
         <label><span id="recurring-day-label">Dzień miesiąca</span><input id="recurring-day" type="number" min="1" max="31" value="1" required></label>
         <label>Od dnia<input id="recurring-start" type="date" required></label>
@@ -496,6 +572,44 @@
       </div>
       <div class="dialog-footer"><button class="button button-soft" type="button" data-close-dialog="recurring-dialog">Anuluj</button><button class="button button-primary" type="submit">Zastosuj</button></div>
     </form>
+  </dialog>
+
+  <dialog id="account-dialog" class="app-dialog">
+    <form id="account-form" method="dialog">
+      <div class="dialog-header">
+        <div><span class="surface-kicker">Miejsce pieniędzy</span><h2 id="account-dialog-title">Dodaj konto</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="account-dialog" aria-label="Zamknij"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div class="dialog-body form-grid">
+        <label class="form-wide">Nazwa<input id="account-name" type="text" maxlength="80" required placeholder="np. Konto osobiste"></label>
+        <label>Rodzaj<select id="account-type"><option value="bank">Konto osobiste</option><option value="savings">Konto oszczędnościowe</option><option value="cash">Gotówka</option></select></label>
+        <label>Saldo początkowe w tym roku<input id="account-opening" type="number" step="0.01" required value="0"></label>
+        <label class="check-field form-wide"><input id="account-spending-limit" type="checkbox" checked><span>Uwzględniaj w limicie dziennym i tygodniowym</span></label>
+        <label class="check-field form-wide"><input id="account-active" type="checkbox" checked><span>Aktywne konto</span></label>
+        <span id="account-error" class="form-error form-wide"></span>
+      </div>
+      <div class="dialog-footer"><button class="button button-soft" type="button" data-close-dialog="account-dialog">Anuluj</button><button class="button button-primary" type="submit">Zastosuj</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="statement-dialog" class="app-dialog dialog-wide">
+    <div class="dialog-header">
+      <div><span class="surface-kicker">Import lokalny</span><h2>Podgląd wyciągu</h2></div>
+      <button class="icon-button dialog-close" type="button" data-close-dialog="statement-dialog" aria-label="Zamknij"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <div class="statement-toolbar">
+      <label>Konto docelowe<select id="statement-account"></select></label>
+      <div><strong id="statement-file-name">—</strong><span id="statement-summary">Wybierz wyciąg CSV</span></div>
+      <button id="choose-statement-file" class="button button-soft" type="button">Wybierz plik CSV</button>
+    </div>
+    <div id="statement-warnings" class="statement-warnings"></div>
+    <div class="table-responsive statement-table-wrap">
+      <table class="data-table statement-table"><thead><tr><th></th><th>Data</th><th>Rodzaj</th><th>Opis</th><th>Kwota</th><th>Status</th></tr></thead><tbody id="statement-preview-body"></tbody></table>
+    </div>
+    <div class="dialog-footer">
+      <button class="button button-soft" type="button" data-close-dialog="statement-dialog">Anuluj</button>
+      <button id="confirm-statement-import" class="button button-primary" type="button">Dodaj zaznaczone operacje</button>
+    </div>
   </dialog>
 
   <dialog id="budget-dialog" class="app-dialog dialog-small">
@@ -526,6 +640,7 @@
   <div id="mobile-backdrop" class="mobile-backdrop" hidden></div>
   <section id="print-report" class="print-report" hidden></section>
 
+  <script src="assets/tauri-bridge.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>

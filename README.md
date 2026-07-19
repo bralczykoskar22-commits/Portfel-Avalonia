@@ -8,12 +8,17 @@ układ, kolory, animacje, jasny i ciemny motyw oraz sposób obsługi.
 
 - osobny widok każdego z 12 miesięcy i podsumowanie roczne,
 - ręczne wpływy i wydatki bez konieczności posiadania wyciągu bankowego,
+- opcjonalne konta gotówkowe, osobiste i oszczędnościowe,
+- transfery pomiędzy kontami bez zaliczania ich do wydatków,
+- opcjonalny, lokalny import wyciągów CSV z podglądem i wykrywaniem duplikatów,
 - cele z automatycznym wyliczeniem zalecanej wpłaty i przeliczeniem po wypłacie,
 - długi z postępem, terminem, ratą minimalną i oprocentowaniem,
 - harmonogramy cykliczne, koperty kategorii, alerty i prognozy,
+- opcjonalne limity dzienne i tygodniowe do następnej wypłaty,
+- przełączniki modułów oraz odsetki włączane osobno przy konkretnym długu,
 - jasny i ciemny motyw,
 - przycisk „Zapisz” oraz skrót `Ctrl+S`,
-- lokalna baza SQLite i 20 automatycznych kopii poprzednich zapisów,
+- lokalna baza SQLite i 30 automatycznych kopii poprzednich zapisów,
 - eksport i import danych JSON.
 
 Program nie używa `localStorage`, nie uruchamia serwera i nie wymaga Pythona.
@@ -24,8 +29,13 @@ Dane finansowe nie są wysyłane do Internetu.
 Na Windows baza jest tworzona w katalogu danych użytkownika, standardowo:
 
 ```text
-%APPDATA%\pl.portfel.app\data\portfel.sqlite
+%APPDATA%\Portfel\data\portfel.sqlite
 ```
+
+Jest to ten sam katalog i format bazy, którego używała przekazana wersja
+Electron. Jeżeli baza już tam istnieje, Tauri otworzy ją bez zakładania nowego,
+pustego portfela. Dane z wcześniejszej próbnej wersji Tauri są importowane tylko
+wtedy, gdy właściwa baza Portfela jeszcze nie istnieje.
 
 Odinstalowanie programu nie powinno usuwać tej bazy. Przed większą aktualizacją
 warto dodatkowo skorzystać z przycisku „Eksportuj kopię”.
@@ -57,8 +67,9 @@ Na Windows można również uruchomić `build-windows.bat`.
 
 ## Struktura
 
-- `src/` — niezmieniony wizualnie interfejs HTML/CSS/JS,
-- `src-tauri/` — natywne okno, SQLite, kopie danych i instalator,
+- `src/` — interfejs HTML/CSS/JS przeniesiony bez zmian z wersji Electron oraz
+  mały most poleceń Tauri,
+- `src-tauri/` — natywne okno, SQLite, kopie danych, import CSV i instalator,
 - `tests/` — automatyczny test interfejsu i mostu Tauri,
 - `.github/workflows/` — kontrolna kompilacja Windows.
 
@@ -72,4 +83,3 @@ Wersję należy zmienić jednocześnie w `package.json`, `src-tauri/Cargo.toml` 
 sprawdzamy zachowanie istniejącej bazy. Mechanizm automatycznych aktualizacji
 zostanie włączony dopiero przed pierwszą stabilną wersją, po przygotowaniu
 podpisywania paczek aktualizacyjnych.
-
