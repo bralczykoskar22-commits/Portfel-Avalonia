@@ -123,7 +123,7 @@ public sealed class SqliteBudgetStore : IBudgetStore
         return await ImportJsonAsync(fullPath, cancellationToken);
     }
 
-    private SqliteConnection CreateConnection() => new($"Data Source={DatabasePath};Mode=ReadWriteCreate;Cache=Shared");
+    private SqliteConnection CreateConnection() => new($"Data Source={DatabasePath};Mode=ReadWriteCreate;Pooling=False");
 
     private async Task EnsureDatabaseAsync(CancellationToken cancellationToken)
     {
