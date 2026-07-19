@@ -44,6 +44,10 @@ jobs:
           -p:DebugSymbols=false
           -o artifacts/Portfel-Windows-x64
 
+      - name: Remove debug symbols from user package
+        shell: pwsh
+        run: Get-ChildItem artifacts/Portfel-Windows-x64 -Filter *.pdb -Recurse | Remove-Item -Force
+
       - name: Add test instructions
         shell: pwsh
         run: Copy-Item TESTOWANIE.txt artifacts/Portfel-Windows-x64/TESTOWANIE.txt
@@ -55,4 +59,3 @@ jobs:
           path: artifacts/Portfel-Windows-x64
           if-no-files-found: error
           retention-days: 30
-
