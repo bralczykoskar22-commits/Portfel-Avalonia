@@ -896,7 +896,7 @@ public sealed class MainViewModel : ViewModelBase
                 Category = row.IsIncome ? "" : row.Category,
                 AccountId = accountId,
                 Description = row.Description,
-                Amount = row.Amount,
+                Amount = Math.Abs(row.SignedAmount),
                 ImportFingerprint = row.Fingerprint
             });
         }
