@@ -41,7 +41,7 @@ jobs:
         run: npm test
 
       - name: Test i kompilacja Rust
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
 
       - name: Budowanie Portfela
         run: npm run build
