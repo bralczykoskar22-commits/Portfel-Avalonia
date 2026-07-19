@@ -1,0 +1,41 @@
+{
+  "version": 3,
+  "meta": {
+    "savedAt": null
+  },
+  "settings": {
+    "currentYear": 2026,
+    "theme": "light",
+    "balances": {
+      "2026": {
+        "available": 0,
+        "reserve": 0
+      }
+    },
+    "categories": [
+      "Wypłata",
+      "Dodatkowy wpływ",
+      "Mieszkanie",
+      "Rachunki",
+      "Żywność",
+      "Transport",
+      "Zdrowie",
+      "Ubezpieczenia",
+      "Spłata długów",
+      "Dom",
+      "Odzież",
+      "Dzieci",
+      "Zwierzęta",
+      "Rozrywka",
+      "Rozwój",
+      "Prezenty",
+      "Podróże",
+      "Inne"
+    ]
+  },
+  "goals": [],
+  "debts": [],
+  "recurring": [],
+  "budgets": [],
+  "transactions": []
+}

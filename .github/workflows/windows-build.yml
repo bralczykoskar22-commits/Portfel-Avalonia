@@ -1,61 +1,73 @@
-name: Windows test build
+name: Portfel Tauri — Windows
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - tauri-migration
+  pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  test-and-build:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
+
     steps:
-      - name: Checkout
+      - name: Pobierz kod
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+      - name: Node.js
+        uses: actions/setup-node@v4
         with:
-          dotnet-version: 8.0.408
+          node-version: 22
+          cache: npm
 
-      - name: Restore
-        run: dotnet restore Portfel.Avalonia.sln
+      - name: Rust stable
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Build and validate XAML
-        run: dotnet build Portfel.Avalonia.sln -c Release --no-restore
+      - name: Pamięć podręczna Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
 
-      - name: Run calculations tests
-        run: dotnet test tests/Portfel.Tests/Portfel.Tests.csproj -c Release --no-build
+      - name: Zależności
+        run: npm ci
 
-      - name: Publish self-contained Windows version
-        run: >-
-          dotnet publish src/Portfel.App/Portfel.App.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:DebugType=None
-          -p:DebugSymbols=false
-          -o artifacts/Portfel-Windows-x64
+      - name: Test interfejsu
+        run: npm test
 
-      - name: Remove debug symbols from user package
+      - name: Test i kompilacja Rust
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Budowanie Portfela
+        run: npm run build
+
+      - name: Przygotuj pełną paczkę
         shell: pwsh
-        run: Get-ChildItem artifacts/Portfel-Windows-x64 -Filter *.pdb -Recurse | Remove-Item -Force
+        run: |
+          $package = "artifacts/Portfel-Tauri-Windows-x64-v0.3.0-alpha.1"
+          New-Item "$package/Aplikacja" -ItemType Directory -Force | Out-Null
+          New-Item "$package/Instalator" -ItemType Directory -Force | Out-Null
+          New-Item "$package/Kod-zrodlowy/Portfel-Tauri" -ItemType Directory -Force | Out-Null
 
-      - name: Add test instructions
-        shell: pwsh
-        run: Copy-Item TESTOWANIE.txt artifacts/Portfel-Windows-x64/TESTOWANIE.txt
+          Copy-Item "src-tauri/target/release/Portfel.exe" "$package/Aplikacja/Portfel.exe"
+          Copy-Item "src-tauri/target/release/bundle/nsis/*.exe" "$package/Instalator/"
+          Copy-Item "README.md", "TESTOWANIE.md", "CHANGELOG.md", "build-windows.bat" "$package/"
 
-      - name: Upload Windows package
+          $source = (Resolve-Path ".").Path
+          $destination = (Resolve-Path "$package/Kod-zrodlowy/Portfel-Tauri").Path
+          robocopy $source $destination /E /XD node_modules target artifacts .git /XF *.pdb
+          if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE }
+          exit 0
+
+      - name: Opublikuj paczkę testową
         uses: actions/upload-artifact@v4
         with:
-          name: Portfel-Windows-x64-v0.2.0-alpha.1
-          path: artifacts/Portfel-Windows-x64
+          name: Portfel-Tauri-Windows-x64-v0.3.0-alpha.1
+          path: artifacts/Portfel-Tauri-Windows-x64-v0.3.0-alpha.1
           if-no-files-found: error
           retention-days: 30

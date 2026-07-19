@@ -1,36 +1,75 @@
-# Portfel — Avalonia
+# Portfel — wersja Tauri
 
-[![Windows test build](https://github.com/bralczykoskar22-commits/Portfel-Avalonia/actions/workflows/windows-build.yml/badge.svg)](https://github.com/bralczykoskar22-commits/Portfel-Avalonia/actions/workflows/windows-build.yml)
+Natywna aplikacja finansowa dla Windows 10/11. Interfejs jest bezpośrednio
+przeniesiony z wcześniejszej wersji webowej/Electron, dlatego zachowuje ten sam
+układ, kolory, animacje, jasny i ciemny motyw oraz sposób obsługi.
 
-Lokalny menedżer finansów osobistych dla Windows 10/11. Aplikacja działa bez logowania i bez chmury. Dane są zapisywane dopiero po kliknięciu **Zapisz**.
+## Co działa
 
-## Co zawiera wersja 0.2.0-alpha.1
+- osobny widok każdego z 12 miesięcy i podsumowanie roczne,
+- ręczne wpływy i wydatki bez konieczności posiadania wyciągu bankowego,
+- cele z automatycznym wyliczeniem zalecanej wpłaty i przeliczeniem po wypłacie,
+- długi z postępem, terminem, ratą minimalną i oprocentowaniem,
+- harmonogramy cykliczne, koperty kategorii, alerty i prognozy,
+- jasny i ciemny motyw,
+- przycisk „Zapisz” oraz skrót `Ctrl+S`,
+- lokalna baza SQLite i 20 automatycznych kopii poprzednich zapisów,
+- eksport i import danych JSON.
 
-- osobne miesiące i automatyczne podsumowanie roku,
-- gotówkę oraz opcjonalne konta bankowe,
-- przelewy między kontami, które nie są wydatkiem,
-- cele z automatycznie wyliczaną wpłatą miesięczną, tygodniową lub przy wypłacie,
-- wypłaty z celu i natychmiastowe przeliczenie planu,
-- długi z automatycznym saldem, ratą, terminem i opcjonalnymi odsetkami,
-- wpisy cykliczne, limity kategorii oraz limit dzienny/tygodniowy,
-- import wyciągów CSV z podglądem i wykrywaniem duplikatów,
-- ręczny zapis w SQLite, eksport/import JSON i rotacyjne kopie bezpieczeństwa,
-- jasny i ciemny motyw oraz moduły włączane w ustawieniach.
+Program nie używa `localStorage`, nie uruchamia serwera i nie wymaga Pythona.
+Dane finansowe nie są wysyłane do Internetu.
 
-Program nie zawiera danych demonstracyjnych. Pierwsze uruchomienie tworzy wyłącznie pustą pozycję **Gotówka**.
+## Dane programu
 
-## Dane i aktualizacje
+Na Windows baza jest tworzona w katalogu danych użytkownika, standardowo:
 
-Baza użytkownika znajduje się w `%APPDATA%\Portfel\data\portfel.sqlite`, a kopie w `%APPDATA%\Portfel\backups`. Kod programu i dane użytkownika są rozdzielone, więc wymiana `Portfel.exe` nie usuwa budżetu.
-
-## Budowanie
-
-Wymagany jest .NET SDK 8.0.408.
-
-```powershell
-dotnet restore Portfel.Avalonia.sln
-dotnet test Portfel.Avalonia.sln -c Release
-dotnet publish src/Portfel.App/Portfel.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+```text
+%APPDATA%\pl.portfel.app\data\portfel.sqlite
 ```
 
-Workflow `windows-build.yml` tworzy samodzielną paczkę Windows x64 po każdym wysłaniu zmian do gałęzi `main`.
+Odinstalowanie programu nie powinno usuwać tej bazy. Przed większą aktualizacją
+warto dodatkowo skorzystać z przycisku „Eksportuj kopię”.
+
+## Uruchomienie gotowej wersji
+
+Najwygodniej uruchomić instalator `Portfel_*_x64-setup.exe`. Można też uruchomić
+sam plik `Portfel.exe`. Windows 10 od wydania 1803 otrzymuje WebView2 wraz z
+systemem; jeśli go brakuje, instalator pobierze oficjalny składnik Microsoft.
+
+## Praca z kodem
+
+Wymagane są:
+
+- Node.js 20 lub nowszy,
+- Rust stable,
+- Windows 10/11 i narzędzia C++ z Visual Studio Build Tools.
+
+Polecenia:
+
+```text
+npm ci
+npm test
+npm run dev
+npm run build
+```
+
+Na Windows można również uruchomić `build-windows.bat`.
+
+## Struktura
+
+- `src/` — niezmieniony wizualnie interfejs HTML/CSS/JS,
+- `src-tauri/` — natywne okno, SQLite, kopie danych i instalator,
+- `tests/` — automatyczny test interfejsu i mostu Tauri,
+- `.github/workflows/` — kontrolna kompilacja Windows.
+
+Wygenerowane katalogi `node_modules/` i `src-tauri/target/` nie są częścią kodu
+źródłowego i można je zawsze odtworzyć poleceniem `npm ci` oraz kompilacją.
+
+## Aktualizacje
+
+Wersję należy zmienić jednocześnie w `package.json`, `src-tauri/Cargo.toml` i
+`src-tauri/tauri.conf.json`. Następnie uruchamiamy testy, kompilację Windows i
+sprawdzamy zachowanie istniejącej bazy. Mechanizm automatycznych aktualizacji
+zostanie włączony dopiero przed pierwszą stabilną wersją, po przygotowaniu
+podpisywania paczek aktualizacyjnych.
+

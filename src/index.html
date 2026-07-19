@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="pl" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Lokalny budżet gotówkowy z celami, długami i zapisem do pliku.">
+  <title>Lokalny budżet gotówkowy</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <div id="loading-screen" class="loading-screen">
+    <div class="loader-mark" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </div>
+    <p>Ładowanie lokalnych danych…</p>
+  </div>
+
+  <div id="connection-error" class="connection-error" hidden>
+    <div class="connection-card">
+      <div class="connection-icon" aria-hidden="true">!</div>
+      <h1>Uruchom aplikację przez plik startowy</h1>
+      <p>Przeglądarka nie ma dostępu do lokalnego pliku danych. Zamknij tę kartę i uruchom <strong>start.bat</strong> albo <strong>start.sh</strong>.</p>
+      <button id="retry-connection" class="button button-primary" type="button">Spróbuj ponownie</button>
+    </div>
+  </div>
+
+  <div id="app" class="app-layout" hidden>
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-glow" aria-hidden="true"></div>
+      <div class="brand">
+        <div class="brand-symbol" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18a2 2 0 0 1 2 2v2h-4.5a3.5 3.5 0 1 0 0 7H20v1a2 2 0 0 1-2 2H6.5A2.5 2.5 0 0 1 4 16.5v-9Z"></path><path d="M15.5 11H21v3h-5.5a1.5 1.5 0 0 1 0-3Z"></path></svg>
+        </div>
+        <div>
+          <strong>Portfel</strong>
+          <span>lokalny budżet</span>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="Nawigacja">
+        <button class="nav-button is-active" type="button" data-view="dashboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z"></path></svg>
+          <span>Podsumowanie</span>
+        </button>
+        <button class="nav-button" type="button" data-view="months">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path><path d="M8 13h3v3H8v-3Z"></path></svg>
+          <span>Miesiące</span>
+        </button>
+        <button class="nav-button" type="button" data-view="goals">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle><path d="m15 9 5-5m-3 0h3v3"></path></svg>
+          <span>Cele</span>
+          <span id="goals-nav-count" class="nav-count">0</span>
+        </button>
+        <button class="nav-button" type="button" data-view="debts">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M8 8h8m-8 4h8m-8 4h5"></path></svg>
+          <span>Długi</span>
+          <span id="debts-nav-count" class="nav-count">0</span>
+        </button>
+        <button class="nav-button" type="button" data-view="plan">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path><path d="m8 15 2 2 5-5"></path></svg>
+          <span>Plan</span>
+        </button>
+        <button class="nav-button" type="button" data-view="analytics">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10m7 10V4m7 16v-7"></path><path d="M3 20h18"></path></svg>
+          <span>Analizy</span>
+        </button>
+        <button class="nav-button" type="button" data-view="settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1v.1h-4V21a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.87.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1-.4h-.1v-4H3a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.34-1.87l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1v-.1h4V3a1.7 1.7 0 0 0 1.1 1.6 1.7 1.7 0 0 0 1.87-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.17.36.38.7.6 1 .27.3.62.44 1 .4h.1v4H21a1.7 1.7 0 0 0-1.6.6Z"></path></svg>
+          <span>Ustawienia</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="local-pill"><span class="local-dot"></span> Dane tylko lokalnie</div>
+        <small id="storage-location">Baza: portfel.sqlite</small>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="mobile-menu" class="icon-button mobile-menu" type="button" aria-label="Otwórz menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+          </button>
+          <div>
+            <p id="page-eyebrow" class="eyebrow">Roczny widok</p>
+            <h1 id="page-title">Podsumowanie</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="theme-toggle" class="icon-button" type="button" aria-label="Zmień motyw">
+            <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+          </button>
+          <div class="save-copy">
+            <span id="save-label">Wszystko zapisane</span>
+            <small id="save-time">—</small>
+          </div>
+          <button id="save-button" class="button button-save" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12l2 2v14H5V4Z"></path><path d="M8 4v6h8V4M8 20v-6h8v6"></path></svg>
+            <span>Zapisz</span>
+            <i id="dirty-indicator" class="dirty-indicator" hidden></i>
+          </button>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="page is-visible" data-page="dashboard">
+          <div class="hero-card">
+            <div class="hero-copy">
+              <span class="hero-kicker">Rok <strong id="hero-year"></strong></span>
+              <h2>Twoje finanse w jednym miejscu</h2>
+              <p>Wpłaty na cele i długi są automatycznie powiązane z wpisami miesięcznymi.</p>
+              <div class="hero-actions">
+                <button class="button button-primary" type="button" data-go="months">Dodaj operację</button>
+                <button class="button button-soft" type="button" data-go="goals">Nowy cel</button>
+              </div>
+            </div>
+            <div class="hero-graphic" aria-hidden="true">
+              <div class="coin coin-one">zł</div>
+              <div class="coin coin-two">zł</div>
+              <svg viewBox="0 0 260 180"><defs><linearGradient id="heroGradient" x1="0" x2="1"><stop stop-color="#2dd4bf"></stop><stop offset="1" stop-color="#8b5cf6"></stop></linearGradient></defs><path d="M25 145c35-10 42-46 73-48 31-2 38 30 67 18 25-11 31-56 69-73" fill="none" stroke="url(#heroGradient)" stroke-width="10" stroke-linecap="round"></path><circle cx="25" cy="145" r="8"></circle><circle cx="98" cy="97" r="8"></circle><circle cx="165" cy="115" r="8"></circle><circle cx="234" cy="42" r="8"></circle></svg>
+            </div>
+          </div>
+
+          <div id="deadline-alerts" class="alerts" aria-live="polite"></div>
+
+          <div class="metrics-grid">
+            <article class="metric-card metric-teal">
+              <div class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M16 11h5v4h-5a2 2 0 1 1 0-4Z"></path></svg></div>
+              <span>Gotówka dostępna</span>
+              <strong id="metric-available">0 zł</strong>
+              <small id="metric-available-note">Na koniec roku</small>
+            </article>
+            <article class="metric-card metric-blue">
+              <div class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14v8H5z"></path><path d="M12 12V7m-3 3 3-3 3 3"></path></svg></div>
+              <span>Rezerwa</span>
+              <strong id="metric-reserve">0 zł</strong>
+              <small>Odłożona osobno</small>
+            </article>
+            <article class="metric-card metric-purple">
+              <div class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg></div>
+              <span>Odłożono na cele</span>
+              <strong id="metric-goals">0 zł</strong>
+              <small id="metric-goals-note">Brak celów</small>
+            </article>
+            <article class="metric-card metric-orange">
+              <div class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16H6z"></path><path d="M9 9h6m-6 4h6"></path></svg></div>
+              <span>Długi pozostałe</span>
+              <strong id="metric-debts">0 zł</strong>
+              <small id="metric-debts-note">Brak długów</small>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="surface chart-card">
+              <div class="surface-header">
+                <div>
+                  <span class="surface-kicker">Przepływy</span>
+                  <h3>Wpływy i wydatki</h3>
+                </div>
+                <div class="chart-legend">
+                  <span><i class="legend-dot income"></i>Wpływy</span>
+                  <span><i class="legend-dot outflow"></i>Wydatki + cele + długi</span>
+                </div>
+              </div>
+              <div id="annual-chart" class="annual-chart"></div>
+            </article>
+            <article class="surface recent-card">
+              <div class="surface-header">
+                <div>
+                  <span class="surface-kicker">Ostatnie</span>
+                  <h3>Operacje</h3>
+                </div>
+                <button class="text-button" type="button" data-go="months">Zobacz wszystkie</button>
+              </div>
+              <div id="recent-transactions" class="recent-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="page" data-page="months" hidden>
+          <div class="page-tools">
+            <div id="month-tabs" class="month-tabs" aria-label="Wybierz miesiąc"></div>
+            <div class="tool-actions">
+              <button id="print-month" class="button button-soft" type="button">Drukuj miesiąc</button>
+              <button id="add-transaction" class="button button-primary" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                Dodaj operację
+              </button>
+            </div>
+          </div>
+          <div class="month-heading">
+            <div>
+              <span class="surface-kicker">Wybrany miesiąc</span>
+              <h2 id="selected-month-title">Styczeń</h2>
+            </div>
+            <span id="month-entry-count" class="count-badge">0 wpisów</span>
+          </div>
+          <div class="month-summary-grid">
+            <article class="mini-stat"><span>Wpływy</span><strong id="month-income">0 zł</strong></article>
+            <article class="mini-stat"><span>Wydatki</span><strong id="month-expenses">0 zł</strong></article>
+            <article class="mini-stat"><span>Cele i długi</span><strong id="month-targets">0 zł</strong></article>
+            <article class="mini-stat"><span>Dostępna na koniec</span><strong id="month-ending">0 zł</strong><small id="month-reserve-ending">Rezerwa: 0 zł</small></article>
+          </div>
+          <article class="surface month-plan-card">
+            <div class="surface-header">
+              <div><span class="surface-kicker">Automatyczny harmonogram</span><h3>Plan na ten miesiąc</h3></div>
+              <span id="month-plan-status" class="count-badge">0 zadań</span>
+            </div>
+            <div id="month-plan" class="month-plan-list"></div>
+          </article>
+          <article class="surface data-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Data</th><th>Rodzaj</th><th>Powiązanie</th><th>Opis</th><th>Kwota</th><th>Saldo dostępne</th><th></th></tr>
+                </thead>
+                <tbody id="transactions-table"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="page" data-page="goals" hidden>
+          <div class="page-tools">
+            <div>
+              <span class="surface-kicker">Oszczędzanie</span>
+              <h2>Twoje cele</h2>
+            </div>
+            <button id="add-goal" class="button button-primary" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+              Dodaj cel
+            </button>
+          </div>
+          <div id="goals-summary" class="summary-strip"></div>
+          <div id="goals-grid" class="target-grid"></div>
+        </section>
+
+        <section class="page" data-page="debts" hidden>
+          <div class="page-tools">
+            <div>
+              <span class="surface-kicker">Spłacanie</span>
+              <h2>Twoje długi</h2>
+            </div>
+            <button id="add-debt" class="button button-primary" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+              Dodaj dług
+            </button>
+          </div>
+          <div id="debts-summary" class="summary-strip"></div>
+          <div id="debts-grid" class="target-grid"></div>
+        </section>
+
+        <section class="page" data-page="plan" hidden>
+          <div class="page-tools planning-tools">
+            <div>
+              <span class="surface-kicker">Automatyzacja</span>
+              <h2>Plan i kalendarz</h2>
+            </div>
+            <div id="plan-month-tabs" class="month-tabs" aria-label="Miesiąc planu"></div>
+          </div>
+
+          <div class="planning-grid">
+            <article class="surface planning-card">
+              <div class="surface-header">
+                <div><span class="surface-kicker">Powtarzalne</span><h3>Wpływy i wydatki cykliczne</h3></div>
+                <button id="add-recurring" class="button button-primary" type="button">Dodaj cykliczny wpis</button>
+              </div>
+              <div id="recurring-list" class="automation-list"></div>
+            </article>
+
+            <article class="surface planning-card">
+              <div class="surface-header">
+                <div><span class="surface-kicker">Limity kategorii</span><h3>Koperty na miesiąc</h3></div>
+                <button id="add-budget" class="button button-primary" type="button">Dodaj kopertę</button>
+              </div>
+              <div id="budgets-list" class="envelope-grid"></div>
+            </article>
+          </div>
+
+          <article class="surface calendar-card">
+            <div class="surface-header">
+              <div><span class="surface-kicker">Terminy</span><h3 id="calendar-title">Kalendarz</h3></div>
+              <div class="calendar-legend"><span><i class="calendar-dot is-goal"></i>Cel</span><span><i class="calendar-dot is-debt"></i>Dług</span><span><i class="calendar-dot is-recurring"></i>Cykliczne</span></div>
+            </div>
+            <div class="calendar-layout">
+              <div id="calendar-grid" class="calendar-grid"></div>
+              <div id="calendar-events" class="calendar-events"></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="page" data-page="analytics" hidden>
+          <div class="page-tools">
+            <div><span class="surface-kicker">Przyszłe miesiące</span><h2>Prognoza i raporty</h2></div>
+            <div class="tool-actions">
+              <button id="print-year" class="button button-soft" type="button">Drukuj raport roczny</button>
+            </div>
+          </div>
+          <div class="analytics-summary">
+            <article class="mini-stat"><span>Prognoza na koniec roku</span><strong id="forecast-ending">0 zł</strong><small>Gotówka dostępna</small></article>
+            <article class="mini-stat"><span>Najniższe saldo</span><strong id="forecast-lowest">0 zł</strong><small id="forecast-lowest-month">—</small></article>
+            <article class="mini-stat"><span>Planowane wypływy</span><strong id="forecast-outflows">0 zł</strong><small>Cele, długi i cykliczne</small></article>
+          </div>
+          <article class="surface forecast-card">
+            <div class="surface-header">
+              <div><span class="surface-kicker">Saldo dostępne</span><h3>Prognoza roczna</h3></div>
+              <div class="chart-legend"><span><i class="legend-dot income"></i>Saldo</span><span><i class="legend-line planned"></i>Plan</span></div>
+            </div>
+            <div id="forecast-chart" class="forecast-chart"></div>
+          </article>
+          <article class="surface data-card analysis-table-card">
+            <div class="surface-header">
+              <div><span class="surface-kicker">Miesiąc po miesiącu</span><h3>Rzeczywiste i planowane przepływy</h3></div>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table analysis-table">
+                <thead><tr><th>Miesiąc</th><th>Rzeczywiste</th><th>Planowane wpływy</th><th>Planowane wypływy</th><th>Prognozowane saldo</th></tr></thead>
+                <tbody id="forecast-table"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="page" data-page="settings" hidden>
+          <div class="settings-grid">
+            <article class="surface settings-card">
+              <div class="surface-header">
+                <div>
+                  <span class="surface-kicker">Podstawowe</span>
+                  <h2>Ustawienia roku</h2>
+                </div>
+              </div>
+              <form id="settings-form" class="form-grid">
+                <label>Rok
+                  <input id="settings-year" type="number" min="2020" max="2100" required>
+                </label>
+                <label>Gotówka dostępna 1 stycznia
+                  <input id="settings-available" type="number" min="0" step="0.01" required>
+                </label>
+                <label>Rezerwa 1 stycznia
+                  <input id="settings-reserve" type="number" min="0" step="0.01" required>
+                </label>
+                <label class="form-wide">Kategorie — jedna w wierszu
+                  <textarea id="settings-categories" rows="10"></textarea>
+                </label>
+                <div class="form-actions form-wide">
+                  <button class="button button-primary" type="submit">Zastosuj ustawienia</button>
+                  <span id="settings-error" class="form-error"></span>
+                </div>
+              </form>
+            </article>
+            <article class="surface settings-card">
+              <div class="surface-header">
+                <div>
+                  <span class="surface-kicker">Bezpieczeństwo</span>
+                  <h2>Plik danych</h2>
+                </div>
+              </div>
+              <div class="file-info">
+                <div class="file-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path></svg></div>
+                <div><strong id="storage-file-name">portfel.sqlite</strong><span id="storage-file-description">Lokalna baza SQLite — zapis po kliknięciu „Zapisz”</span></div>
+              </div>
+              <div class="backup-actions">
+                <button id="export-data" class="button button-soft" type="button">Eksportuj kopię</button>
+                <button id="import-data" class="button button-soft" type="button">Importuj kopię</button>
+                <input id="import-file" type="file" accept=".json,application/json" hidden>
+                <button id="reset-data" class="button button-danger-ghost" type="button">Wyczyść dane</button>
+              </div>
+              <div class="privacy-note">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V8a6 6 0 0 1 12 0v2"></path><path d="M5 10h14v11H5z"></path></svg>
+                <p>Aplikacja działa pod adresem 127.0.0.1. Dane nie opuszczają Twojego komputera.</p>
+              </div>
+              <div class="backup-history">
+                <div class="surface-header compact-header">
+                  <div><span class="surface-kicker">Historia zapisu</span><h3>Automatyczne kopie</h3></div>
+                  <button id="refresh-backups" class="text-button" type="button">Odśwież</button>
+                </div>
+                <p class="helper-copy">Przed każdym nadpisaniem pliku aplikacja zachowuje poprzednią wersję. Przechowywanych jest 20 ostatnich kopii.</p>
+                <div id="backups-list" class="backups-list"></div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="transaction-dialog" class="app-dialog">
+    <form id="transaction-form" method="dialog">
+      <div class="dialog-header">
+        <div><span class="surface-kicker">Miesięczny wpis</span><h2 id="transaction-dialog-title">Dodaj operację</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="transaction-dialog" aria-label="Zamknij"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div class="dialog-body form-grid">
+        <label>Data<input id="transaction-date" type="date" required></label>
+        <label>Rodzaj
+          <select id="transaction-type" required>
+            <option value="income">Wpływ</option>
+            <option value="expense">Wydatek</option>
+            <option value="goal">Wpłata na cel</option>
+            <option value="goal_withdraw">Wypłata z celu</option>
+            <option value="debt">Wpłata na dług</option>
+            <option value="reserve_in">Do rezerwy</option>
+            <option value="reserve_out">Z rezerwy</option>
+          </select>
+        </label>
+        <label id="transaction-category-field">Kategoria<select id="transaction-category"></select></label>
+        <label id="transaction-target-field" hidden><span id="transaction-target-label">Cel</span><select id="transaction-target"></select></label>
+        <label class="form-wide">Opis<input id="transaction-description" type="text" maxlength="100" placeholder="np. wypłata, zakupy, rata"></label>
+        <label>Kwota<input id="transaction-amount" type="number" min="0.01" step="0.01" required></label>
+        <label>Notatka<input id="transaction-note" type="text" maxlength="160" placeholder="opcjonalnie"></label>
+        <span id="transaction-error" class="form-error form-wide"></span>
+      </div>
+      <div class="dialog-footer">
+        <button class="button button-soft" type="button" data-close-dialog="transaction-dialog">Anuluj</button>
+        <button class="button button-primary" type="submit">Zastosuj</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="goal-dialog" class="app-dialog">
+    <form id="goal-form" method="dialog">
+      <div class="dialog-header">
+        <div><span class="surface-kicker">Oszczędzanie</span><h2 id="goal-dialog-title">Dodaj cel</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="goal-dialog" aria-label="Zamknij"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div class="dialog-body form-grid">
+        <label class="form-wide">Nazwa celu<input id="goal-name" type="text" maxlength="80" required placeholder="np. poduszka finansowa"></label>
+        <label>Kwota docelowa<input id="goal-target" type="number" min="0.01" step="0.01" required></label>
+        <label>Termin<input id="goal-deadline" type="date" required></label>
+        <label>Start planu<input id="goal-start" type="date" required></label>
+        <label>Częstotliwość
+          <select id="goal-cadence">
+            <option value="monthly">Co miesiąc</option>
+            <option value="weekly">Co tydzień</option>
+            <option value="payday">Przy każdej wypłacie</option>
+          </select>
+        </label>
+        <label id="goal-payment-day-field"><span id="goal-payment-day-label">Dzień miesiąca</span><input id="goal-payment-day" type="number" min="1" max="31" value="1"></label>
+        <label id="goal-payday-field" hidden>Powiązana wypłata<select id="goal-payday-recurring"></select></label>
+        <label>Maksymalna pojedyncza wpłata<input id="goal-max-contribution" type="number" min="0" step="0.01" placeholder="opcjonalnie"></label>
+        <span id="goal-error" class="form-error form-wide"></span>
+      </div>
+      <div class="dialog-footer">
+        <button class="button button-soft" type="button" data-close-dialog="goal-dialog">Anuluj</button>
+        <button class="button button-primary" type="submit">Zastosuj</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="debt-dialog" class="app-dialog">
+    <form id="debt-form" method="dialog">
+      <div class="dialog-header">
+        <div><span class="surface-kicker">Spłacanie</span><h2 id="debt-dialog-title">Dodaj dług</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="debt-dialog" aria-label="Zamknij"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div class="dialog-body form-grid">
+        <label class="form-wide">Nazwa długu<input id="debt-name" type="text" maxlength="80" required placeholder="np. pożyczka"></label>
+        <label>Kwota do spłaty<input id="debt-total" type="number" min="0.01" step="0.01" required></label>
+        <label>Termin spłaty<input id="debt-deadline" type="date" required></label>
+        <label>Oprocentowanie roczne<input id="debt-apr" type="number" min="0" max="1000" step="0.01" value="0"></label>
+        <label>Minimalna rata<input id="debt-minimum-payment" type="number" min="0" step="0.01" value="0"></label>
+        <label>Dzień raty<input id="debt-payment-day" type="number" min="1" max="31" value="1"></label>
+        <span id="debt-error" class="form-error form-wide"></span>
+      </div>
+      <div class="dialog-footer">
+        <button class="button button-soft" type="button" data-close-dialog="debt-dialog">Anuluj</button>
+        <button class="button button-primary" type="submit">Zastosuj</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="recurring-dialog" class="app-dialog">
+    <form id="recurring-form" method="dialog">
+      <div class="dialog-header">
+        <div><span class="surface-kicker">Automatyczny plan</span><h2 id="recurring-dialog-title">Dodaj cykliczny wpis</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="recurring-dialog" aria-label="Zamknij"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div class="dialog-body form-grid">
+        <label class="form-wide">Nazwa<input id="recurring-name" type="text" maxlength="90" required placeholder="np. wypłata lub czynsz"></label>
+        <label>Rodzaj<select id="recurring-type"><option value="income">Wpływ</option><option value="expense">Wydatek</option></select></label>
+        <label>Kwota<input id="recurring-amount" type="number" min="0.01" step="0.01" required></label>
+        <label>Kategoria<select id="recurring-category"></select></label>
+        <label>Częstotliwość<select id="recurring-cadence"><option value="monthly">Co miesiąc</option><option value="weekly">Co tydzień</option></select></label>
+        <label><span id="recurring-day-label">Dzień miesiąca</span><input id="recurring-day" type="number" min="1" max="31" value="1" required></label>
+        <label>Od dnia<input id="recurring-start" type="date" required></label>
+        <label>Do dnia<input id="recurring-end" type="date" placeholder="bez końca"></label>
+        <label class="check-field form-wide"><input id="recurring-active" type="checkbox" checked><span>Aktywny harmonogram</span></label>
+        <span id="recurring-error" class="form-error form-wide"></span>
+      </div>
+      <div class="dialog-footer"><button class="button button-soft" type="button" data-close-dialog="recurring-dialog">Anuluj</button><button class="button button-primary" type="submit">Zastosuj</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="budget-dialog" class="app-dialog dialog-small">
+    <form id="budget-form" method="dialog">
+      <div class="dialog-header">
+        <div><span class="surface-kicker">Koperta</span><h2 id="budget-dialog-title">Dodaj limit kategorii</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="budget-dialog" aria-label="Zamknij"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div class="dialog-body form-grid">
+        <label class="form-wide">Kategoria<select id="budget-category"></select></label>
+        <label class="form-wide">Miesięczny limit<input id="budget-limit" type="number" min="0.01" step="0.01" required></label>
+        <span id="budget-error" class="form-error form-wide"></span>
+      </div>
+      <div class="dialog-footer"><button class="button button-soft" type="button" data-close-dialog="budget-dialog">Anuluj</button><button class="button button-primary" type="submit">Zastosuj</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="history-dialog" class="app-dialog">
+    <div class="dialog-header">
+      <div><span class="surface-kicker">Historia operacji</span><h2 id="history-dialog-title">Szczegóły</h2></div>
+      <button class="icon-button dialog-close" type="button" data-close-dialog="history-dialog" aria-label="Zamknij"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <div id="history-list" class="history-list"></div>
+    <div class="dialog-footer"><button class="button button-soft" type="button" data-close-dialog="history-dialog">Zamknij</button></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="mobile-backdrop" class="mobile-backdrop" hidden></div>
+  <section id="print-report" class="print-report" hidden></section>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
