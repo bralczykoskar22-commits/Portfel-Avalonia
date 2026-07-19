@@ -204,10 +204,10 @@ test("pełny interfejs Electron działa przez natywne polecenia Tauri", async ()
 
 test("pliki wizualne są identyczne z ostatnią wersją Electron", async () => {
   const [tauriApp, tauriStyles] = await Promise.all([
-    fs.readFile(new URL("src/assets/app.js", root)),
-    fs.readFile(new URL("src/assets/styles.css", root))
+    fs.readFile(new URL("src/assets/app.js", root), "utf8"),
+    fs.readFile(new URL("src/assets/styles.css", root), "utf8")
   ]);
-  const digest = value => createHash("sha256").update(value).digest("hex");
+  const digest = value => createHash("sha256").update(value.replace(/\r\n/g, "\n")).digest("hex");
   assert.equal(digest(tauriApp), "78ada25aeae28c0370b3f98a45b598d44ab7938eca1ad4cbd8825cb41891512b");
   assert.equal(digest(tauriStyles), "20004555fa35c03cf42539d4fae3913d860e9c6f0a409a295e93a990d65f4172");
 });
