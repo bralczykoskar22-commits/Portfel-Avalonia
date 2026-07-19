@@ -41,7 +41,7 @@ jobs:
         run: npm test
 
       - name: Test i kompilacja Rust
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
 
       - name: Budowanie Portfela
         run: npm run build
@@ -60,7 +60,7 @@ jobs:
 
           $source = (Resolve-Path ".").Path
           $destination = (Resolve-Path "$package/Kod-zrodlowy/Portfel-Tauri").Path
-          robocopy $source $destination /E /XD node_modules target artifacts .git /XF *.pdb
+          robocopy $source $destination /E /XD node_modules target artifacts .git gen /XF *.pdb
           if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE }
           exit 0
 
