@@ -70,4 +70,5 @@ jobs:
           name: Portfel-Tauri-Windows-x64-v0.4.0-alpha.1
           path: artifacts/Portfel-Tauri-Windows-x64-v0.4.0-alpha.1
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 30
