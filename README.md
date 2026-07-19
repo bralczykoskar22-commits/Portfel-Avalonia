@@ -1,5 +1,7 @@
 # Portfel — Avalonia
 
+[![Windows test build](https://github.com/bralczykoskar22-commits/Portfel-Avalonia/actions/workflows/windows-build.yml/badge.svg)](https://github.com/bralczykoskar22-commits/Portfel-Avalonia/actions/workflows/windows-build.yml)
+
 Lokalny menedżer finansów osobistych dla Windows 10/11. Aplikacja działa bez logowania i bez chmury. Dane są zapisywane dopiero po kliknięciu **Zapisz**.
 
 ## Co zawiera wersja 0.2.0-alpha.1
