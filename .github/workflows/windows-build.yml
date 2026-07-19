@@ -1,0 +1,58 @@
+name: Windows test build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.408
+
+      - name: Restore
+        run: dotnet restore Portfel.Avalonia.sln
+
+      - name: Build and validate XAML
+        run: dotnet build Portfel.Avalonia.sln -c Release --no-restore
+
+      - name: Run calculations tests
+        run: dotnet test tests/Portfel.Tests/Portfel.Tests.csproj -c Release --no-build
+
+      - name: Publish self-contained Windows version
+        run: >-
+          dotnet publish src/Portfel.App/Portfel.App.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o artifacts/Portfel-Windows-x64
+
+      - name: Add test instructions
+        shell: pwsh
+        run: Copy-Item TESTOWANIE.txt artifacts/Portfel-Windows-x64/TESTOWANIE.txt
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Portfel-Windows-x64-v0.2.0-alpha.1
+          path: artifacts/Portfel-Windows-x64
+          if-no-files-found: error
+          retention-days: 30
+

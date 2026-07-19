@@ -1,0 +1,113 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Portfel.ViewModels"
+             x:Class="Portfel.Views.DashboardView"
+             x:DataType="vm:DashboardPageViewModel">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="30,24,30,34" Spacing="18">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+        <StackPanel>
+          <TextBlock Text="Spokojny przegląd sytuacji" Classes="h2" />
+          <TextBlock Text="Kwoty wynikają wyłącznie z wpisanych przez Ciebie operacji." Classes="muted" FontSize="11" Margin="0,4,0,0" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <ComboBox Width="145" ItemsSource="{Binding Shell.Months}" SelectedItem="{Binding Shell.SelectedMonthChoice}" />
+          <ComboBox Width="95" ItemsSource="{Binding Shell.Years}" SelectedItem="{Binding Shell.SelectedYear}" />
+          <Button Classes="primary" Content="＋ Dodaj operację" Command="{Binding Shell.AddTransactionCommand}" />
+        </StackPanel>
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+        <Border Classes="card">
+          <StackPanel Spacing="8"><TextBlock Text="DOSTĘPNE ŁĄCZNIE" Classes="eyebrow" /><TextBlock Text="{Binding Shell.AvailableBalance}" Classes="metric" /><TextBlock Text="Gotówka i aktywne konta" Classes="muted" FontSize="10" /></StackPanel>
+        </Border>
+        <Border Grid.Column="1" Classes="card">
+          <StackPanel Spacing="8"><TextBlock Text="WPŁYWY W MIESIĄCU" Classes="eyebrow" /><TextBlock Text="{Binding Shell.MonthIncome}" Classes="metric positive" /><TextBlock Text="{Binding Shell.CurrentMonthLabel}" Classes="muted" FontSize="10" /></StackPanel>
+        </Border>
+        <Border Grid.Column="2" Classes="card">
+          <StackPanel Spacing="8"><TextBlock Text="WYDATKI W MIESIĄCU" Classes="eyebrow" /><TextBlock Text="{Binding Shell.MonthExpenses}" Classes="metric" /><TextBlock Text="Bez wpłat na cele i długi" Classes="muted" FontSize="10" /></StackPanel>
+        </Border>
+        <Border Grid.Column="3" Classes="card">
+          <StackPanel Spacing="8"><TextBlock Text="BILANS MIESIĄCA" Classes="eyebrow" /><TextBlock Text="{Binding Shell.MonthNet}" Classes="metric" Classes.positive="{Binding Shell.IsMonthNetPositive}" Classes.negative="{Binding Shell.IsMonthNetNegative}" /><TextBlock Text="Po wydatkach, celach i długach" Classes="muted" FontSize="10" /></StackPanel>
+        </Border>
+      </Grid>
+
+      <Grid ColumnDefinitions="2*,*" ColumnSpacing="14">
+        <Border Classes="card">
+          <Grid RowDefinitions="Auto,*">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+              <StackPanel><TextBlock Text="Przepływy w roku" Classes="h2" /><TextBlock Text="Wpływy i wszystkie odpływy miesiąc po miesiącu" Classes="muted" FontSize="10" /></StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="5"><Border Width="8" Height="8" CornerRadius="4" Background="{DynamicResource AccentBrush}" /><TextBlock Text="Wpływy" Classes="muted" FontSize="10" /></StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="5"><Border Width="8" Height="8" CornerRadius="4" Background="#F4A261" /><TextBlock Text="Odpływy" Classes="muted" FontSize="10" /></StackPanel>
+              </StackPanel>
+            </Grid>
+            <ItemsControl Grid.Row="1" ItemsSource="{Binding Shell.AnnualBars}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" Columns="12" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:MonthBar">
+                  <Grid RowDefinitions="170,Auto" Margin="4,0">
+                    <Grid VerticalAlignment="Bottom" ColumnDefinitions="*,*" ColumnSpacing="3" ToolTip.Tip="{Binding Income}">
+                      <Border VerticalAlignment="Bottom" Height="{Binding IncomeHeight}" Background="{DynamicResource AccentBrush}" CornerRadius="4,4,1,1" />
+                      <Border Grid.Column="1" VerticalAlignment="Bottom" Height="{Binding OutflowHeight}" Background="#F4A261" CornerRadius="4,4,1,1" ToolTip.Tip="{Binding Outflow}" />
+                    </Grid>
+                    <TextBlock Grid.Row="1" Text="{Binding Month}" Classes="muted" FontSize="9" HorizontalAlignment="Center" Margin="0,8,0,0" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Grid>
+        </Border>
+
+        <StackPanel Grid.Column="1" Spacing="14">
+          <Border Classes="card" IsVisible="{Binding Shell.SpendingLimitsEnabled}">
+            <StackPanel Spacing="13">
+              <StackPanel><TextBlock Text="Bezpieczny limit" Classes="h2" /><TextBlock Text="Do następnej wypłaty" Classes="muted" FontSize="10" /></StackPanel>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Border Classes="soft-card"><StackPanel><TextBlock Text="DZIENNIE" Classes="eyebrow" /><TextBlock Text="{Binding Shell.DailyAllowance}" FontSize="18" FontWeight="SemiBold" Margin="0,6,0,0" /></StackPanel></Border>
+                <Border Grid.Column="1" Classes="soft-card"><StackPanel><TextBlock Text="TYGODNIOWO" Classes="eyebrow" /><TextBlock Text="{Binding Shell.WeeklyAllowance}" FontSize="18" FontWeight="SemiBold" Margin="0,6,0,0" /></StackPanel></Border>
+              </Grid>
+              <TextBlock Text="{Binding Shell.AllowanceDetail}" Classes="muted" TextWrapping="Wrap" FontSize="10" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="11">
+              <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Ważne teraz" Classes="h2" /><TextBlock Grid.Column="1" Text="{Binding Shell.Alerts.Count}" Classes="muted" /></Grid>
+              <ItemsControl ItemsSource="{Binding Shell.Alerts}" IsVisible="{Binding Shell.HasAlerts}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:AlertCard">
+                    <Border Classes="soft-card" Margin="0,0,0,7" Padding="11">
+                      <Grid ColumnDefinitions="26,*"><Border Width="22" Height="22" CornerRadius="11" Background="#18E19A2A"><TextBlock Text="{Binding Icon}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" HorizontalAlignment="Center" /></Border><StackPanel Grid.Column="1"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="11" /><TextBlock Text="{Binding Message}" Classes="muted" TextWrapping="Wrap" FontSize="9" /></StackPanel></Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="Brak pilnych ostrzeżeń." Classes="muted" FontSize="11" IsVisible="{Binding !Shell.HasAlerts}" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="Ostatnie operacje" Classes="h2" /><TextBlock Text="Najnowsze wpisy ze wszystkich miesięcy" Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Classes="soft" Content="Pokaż miesiąc" Command="{Binding Shell.NavigateCommand}" CommandParameter="months" /></Grid>
+          <ItemsControl ItemsSource="{Binding Shell.RecentTransactions}" IsVisible="{Binding Shell.HasRecentTransactions}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:TransactionRow">
+                <Grid ColumnDefinitions="84,*,130,Auto" ColumnSpacing="10" Margin="0,2" MinHeight="46">
+                  <TextBlock Text="{Binding Date}" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" /><TextBlock Text="{Binding Subtitle}" Classes="muted" FontSize="9" /></StackPanel>
+                  <TextBlock Grid.Column="2" Text="{Binding TypeLabel}" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="3" Text="{Binding Amount}" FontWeight="SemiBold" VerticalAlignment="Center" Classes.positive="{Binding IsPositive}" Classes.negative="{Binding IsNegative}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Border Classes="soft-card" IsVisible="{Binding !Shell.HasRecentTransactions}"><TextBlock Text="Nie ma jeszcze operacji. Zacznij od przycisku „Dodaj operację”." Classes="muted" TextAlignment="Center" /></Border>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
+

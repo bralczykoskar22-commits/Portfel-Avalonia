@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Portfel.ViewModels"
+             x:Class="Portfel.Views.AccountsView"
+             x:DataType="vm:AccountsPageViewModel"
+             x:CompileBindings="False">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="30,24,30,34" Spacing="18">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel><TextBlock Text="Gotówka i konta według jednej zasady" Classes="h2" /><TextBlock Text="Każda operacja ma źródło. Przelew zmienia dwa salda, ale nie zwiększa wydatków." Classes="muted" FontSize="11" Margin="0,4,0,0" /></StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"><Button Classes="soft" Content="Przelew między kontami" Command="{Binding Shell.AddTransferCommand}" /><Button Classes="primary" Content="＋ Dodaj konto" Command="{Binding Shell.AddAccountCommand}" /></StackPanel>
+      </Grid>
+
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+          <StackPanel Spacing="5"><TextBlock Text="DOSTĘPNE ŁĄCZNIE" Classes="eyebrow" /><TextBlock Text="{Binding Shell.AvailableBalance}" Classes="metric" /><TextBlock Text="Suma aktywnych źródeł pieniędzy" Classes="muted" FontSize="10" /></StackPanel>
+          <Border Grid.Column="1" Classes="soft-card" MaxWidth="410"><Grid ColumnDefinitions="34,*"><TextBlock Text="⌂" Foreground="{DynamicResource AccentBrush}" FontSize="18" /><TextBlock Grid.Column="1" Text="Program nie loguje się do banku i nie wysyła danych. Wyciąg CSV wybierasz ręcznie, a import odbywa się lokalnie." Classes="muted" FontSize="10" TextWrapping="Wrap" /></Grid></Border>
+        </Grid>
+      </Border>
+
+      <ItemsControl ItemsSource="{Binding Shell.AccountCards}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Classes="card" Width="310" Margin="0,0,14,14">
+              <StackPanel Spacing="13">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                  <Border Width="38" Height="38" CornerRadius="12" Background="{DynamicResource AccentBrush}"><TextBlock Text="▣" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                  <StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" Classes="h3" /><TextBlock Text="{Binding Type}" Classes="muted" FontSize="9" /></StackPanel>
+                  <TextBlock Grid.Column="2" Text="{Binding IsActive, StringFormat='{}{0}'}" Classes="muted" FontSize="9" />
+                </Grid>
+                <TextBlock Text="{Binding Balance}" Classes="metric" />
+                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right"><Button Classes="tiny" Content="Edytuj" Command="{Binding $parent[UserControl].DataContext.Shell.EditAccountCommand}" CommandParameter="{Binding Id}" /><Button Classes="tiny danger" Content="Usuń" IsEnabled="{Binding CanDelete}" Command="{Binding $parent[UserControl].DataContext.Shell.DeleteAccountCommand}" CommandParameter="{Binding Id}" /></StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <Border Classes="card" IsVisible="{Binding Shell.StatementImportEnabled}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+          <StackPanel Spacing="5"><TextBlock Text="Import wyciągu bankowego" Classes="h2" /><TextBlock Text="Obsługiwany jest typowy CSV z kolumnami data, opis i kwota. Przed dodaniem zobaczysz podgląd, a duplikaty zostaną odrzucone." Classes="muted" FontSize="10" TextWrapping="Wrap" MaxWidth="690" /></StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"><ComboBox Width="190" ItemsSource="{Binding Shell.AccountChoices}" SelectedItem="{Binding Shell.StatementAccount}" /><Button Classes="primary" Content="Wybierz plik CSV" Command="{Binding Shell.ImportStatementCommand}" /></StackPanel>
+        </Grid>
+      </Border>
+
+      <Border Classes="card" IsVisible="{Binding !Shell.StatementImportEnabled}">
+        <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="Import wyciągów jest wyłączony" Classes="h2" /><TextBlock Text="Możesz używać kont całkowicie ręcznie albo włączyć import CSV w Ustawieniach." Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Classes="soft" Content="Przejdź do ustawień" Command="{Binding Shell.NavigateCommand}" CommandParameter="settings" /></Grid>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

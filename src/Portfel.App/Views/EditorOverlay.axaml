@@ -1,0 +1,196 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Portfel.ViewModels"
+             x:Class="Portfel.Views.EditorOverlay"
+             x:DataType="vm:MainViewModel"
+             x:CompileBindings="False">
+  <Grid Background="#99050D0C">
+    <Border Width="680" MaxHeight="760" HorizontalAlignment="Center" VerticalAlignment="Center"
+            Background="{DynamicResource SurfaceBrush}" CornerRadius="20" Padding="0"
+            BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
+      <Grid RowDefinitions="Auto,*,Auto">
+        <Grid Margin="24,21,20,17" ColumnDefinitions="*,Auto">
+          <StackPanel>
+            <TextBlock Classes="eyebrow" Text="PORTFEL" />
+            <TextBlock Classes="h2" Text="{Binding Editor.Title}" Margin="0,3,0,0" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="icon" Content="×" FontSize="18" Command="{Binding CloseEditorCommand}" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="24,0,24,20" Spacing="15">
+            <!-- Operacja -->
+            <StackPanel IsVisible="{Binding Editor.IsTransaction}" Spacing="14">
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Rodzaj operacji" Classes="muted" FontSize="11" />
+                  <ComboBox ItemsSource="{Binding TransactionTypeChoices}" SelectedItem="{Binding Editor.SelectedType}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                  <TextBlock Text="Data" Classes="muted" FontSize="11" />
+                  <DatePicker SelectedDate="{Binding Editor.Date}" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Kwota" Classes="muted" FontSize="11" />
+                  <TextBox Text="{Binding Editor.Amount}" Watermark="np. 250,00" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                  <TextBlock Text="Źródło pieniędzy" Classes="muted" FontSize="11" />
+                  <ComboBox ItemsSource="{Binding AccountChoices}" SelectedItem="{Binding Editor.SelectedAccount}" />
+                </StackPanel>
+              </Grid>
+              <StackPanel Spacing="6">
+                <TextBlock Text="Opis" Classes="muted" FontSize="11" />
+                <TextBox Text="{Binding Editor.Description}" Watermark="np. Zakupy spożywcze" />
+              </StackPanel>
+              <StackPanel Spacing="6" IsVisible="{Binding TransactionIsExpense}">
+                <TextBlock Text="Kategoria" Classes="muted" FontSize="11" />
+                <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Editor.SelectedCategory}" />
+              </StackPanel>
+              <StackPanel Spacing="6" IsVisible="{Binding TransactionNeedsTarget}">
+                <TextBlock Text="Cel lub dług" Classes="muted" FontSize="11" />
+                <ComboBox ItemsSource="{Binding TransactionTargetChoices}" SelectedItem="{Binding Editor.SelectedTarget}" />
+              </StackPanel>
+              <StackPanel Spacing="6" IsVisible="{Binding TransactionIsTransfer}">
+                <TextBlock Text="Konto docelowe" Classes="muted" FontSize="11" />
+                <ComboBox ItemsSource="{Binding AccountChoices}" SelectedItem="{Binding Editor.SelectedToAccount}" />
+                <TextBlock Text="Przelew zmienia salda kont, ale nie jest liczony jako wydatek." Classes="muted" FontSize="10" />
+              </StackPanel>
+              <StackPanel Spacing="6">
+                <TextBlock Text="Notatka (opcjonalnie)" Classes="muted" FontSize="11" />
+                <TextBox Text="{Binding Editor.Note}" AcceptsReturn="True" MinHeight="62" />
+              </StackPanel>
+            </StackPanel>
+
+            <!-- Cel -->
+            <StackPanel IsVisible="{Binding Editor.IsGoal}" Spacing="14">
+              <StackPanel Spacing="6"><TextBlock Text="Nazwa celu" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Name}" Watermark="np. Poduszka finansowa" /></StackPanel>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Chcę odłożyć" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Amount}" Watermark="np. 10000" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Termin" Classes="muted" FontSize="11" /><DatePicker SelectedDate="{Binding Editor.Deadline}" /></StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Rozpoczęcie" Classes="muted" FontSize="11" /><DatePicker SelectedDate="{Binding Editor.StartDate}" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Częstotliwość wpłat" Classes="muted" FontSize="11" /><ComboBox ItemsSource="{Binding GoalCadenceChoices}" SelectedItem="{Binding Editor.SelectedCadence}" /></StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Dzień wpłaty / dzień tygodnia" Classes="muted" FontSize="11" /><NumericUpDown Value="{Binding Editor.Day}" Minimum="1" Maximum="31" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Maksymalna wpłata (opcjonalnie)" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.MaxContribution}" Watermark="bez limitu" /></StackPanel>
+              </Grid>
+              <CheckBox IsChecked="{Binding Editor.AlertsEnabled}" Content="Ostrzegaj o terminie i zbyt wolnym tempie" />
+              <Border Classes="soft-card">
+                <TextBlock Text="Po zapisaniu program obliczy wymaganą wpłatę miesięczną, tygodniową lub przy wypłacie. Każda wpłata i wypłata z celu automatycznie przeliczy plan." TextWrapping="Wrap" Classes="muted" FontSize="11" />
+              </Border>
+            </StackPanel>
+
+            <!-- Dług -->
+            <StackPanel IsVisible="{Binding Editor.IsDebt}" Spacing="14">
+              <StackPanel Spacing="6"><TextBlock Text="Nazwa długu" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Name}" Watermark="np. Kredyt, pożyczka" /></StackPanel>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Kwota do spłaty" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Amount}" Watermark="np. 5000" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Termin końcowy" Classes="muted" FontSize="11" /><DatePicker SelectedDate="{Binding Editor.Deadline}" /></StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Minimalna rata" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.SecondaryAmount}" Watermark="opcjonalnie" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Dzień płatności" Classes="muted" FontSize="11" /><NumericUpDown Value="{Binding Editor.Day}" Minimum="1" Maximum="31" /></StackPanel>
+              </Grid>
+              <StackPanel IsVisible="{Binding InterestEnabled}" Spacing="10">
+                <CheckBox IsChecked="{Binding Editor.InterestEnabled}" Content="Ten dług ma odsetki" />
+                <StackPanel IsVisible="{Binding Editor.InterestEnabled}" Spacing="6">
+                  <TextBlock Text="Oprocentowanie roczne (%)" Classes="muted" FontSize="11" />
+                  <TextBox Text="{Binding Editor.Apr}" Watermark="np. 8,5" />
+                </StackPanel>
+              </StackPanel>
+              <CheckBox IsChecked="{Binding Editor.AlertsEnabled}" Content="Ostrzegaj o terminie i wymaganej racie" />
+            </StackPanel>
+
+            <!-- Konto -->
+            <StackPanel IsVisible="{Binding Editor.IsAccount}" Spacing="14">
+              <StackPanel Spacing="6"><TextBlock Text="Nazwa" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Name}" Watermark="np. Gotówka, Konto główne" /></StackPanel>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Rodzaj" Classes="muted" FontSize="11" /><ComboBox ItemsSource="{Binding AccountTypeChoices}" SelectedItem="{Binding Editor.SelectedType}" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Saldo początkowe" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Amount}" Watermark="0,00" /></StackPanel>
+              </Grid>
+              <CheckBox IsChecked="{Binding Editor.Toggle}" Content="Konto aktywne" />
+              <Border Classes="soft-card"><TextBlock Text="Saldo początkowe wpisujesz tylko raz. Później saldo jest obliczane z operacji i przelewów." TextWrapping="Wrap" Classes="muted" FontSize="11" /></Border>
+            </StackPanel>
+
+            <!-- Cykliczny -->
+            <StackPanel IsVisible="{Binding Editor.IsRecurring}" Spacing="14">
+              <StackPanel Spacing="6"><TextBlock Text="Nazwa" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Name}" Watermark="np. Wypłata, czynsz" /></StackPanel>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Rodzaj" Classes="muted" FontSize="11" /><ComboBox ItemsSource="{Binding RecurringTypeChoices}" SelectedItem="{Binding Editor.SelectedType}" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Kwota" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Amount}" /></StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Kategoria" Classes="muted" FontSize="11" /><ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Editor.SelectedCategory}" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Konto / gotówka" Classes="muted" FontSize="11" /><ComboBox ItemsSource="{Binding AccountChoices}" SelectedItem="{Binding Editor.SelectedAccount}" /></StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Częstotliwość" Classes="muted" FontSize="11" /><ComboBox ItemsSource="{Binding RecurringCadenceChoices}" SelectedItem="{Binding Editor.SelectedCadence}" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Dzień miesiąca / tygodnia" Classes="muted" FontSize="11" /><NumericUpDown Value="{Binding Editor.Day}" Minimum="1" Maximum="31" /></StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6"><TextBlock Text="Od" Classes="muted" FontSize="11" /><DatePicker SelectedDate="{Binding Editor.StartDate}" /></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6"><TextBlock Text="Do (opcjonalnie)" Classes="muted" FontSize="11" /><DatePicker SelectedDate="{Binding Editor.EndDate}" /></StackPanel>
+              </Grid>
+              <CheckBox IsChecked="{Binding Editor.Toggle}" Content="Harmonogram aktywny" />
+            </StackPanel>
+
+            <!-- Limit -->
+            <StackPanel IsVisible="{Binding Editor.IsBudget}" Spacing="14">
+              <StackPanel Spacing="6"><TextBlock Text="Kategoria" Classes="muted" FontSize="11" /><ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Editor.SelectedCategory}" /></StackPanel>
+              <StackPanel Spacing="6"><TextBlock Text="Miesięczny limit" Classes="muted" FontSize="11" /><TextBox Text="{Binding Editor.Amount}" Watermark="np. 800" /></StackPanel>
+            </StackPanel>
+
+            <!-- Import CSV -->
+            <StackPanel IsVisible="{Binding Editor.IsStatement}" Spacing="12">
+              <Border Classes="soft-card">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel><TextBlock Classes="h3" Text="Nowe operacje" /><TextBlock Classes="muted" Text="Duplikaty zostały pominięte. Odznacz wpisy, których nie chcesz importować." FontSize="10" TextWrapping="Wrap" /></StackPanel>
+                  <TextBlock Grid.Column="1" Text="{Binding SelectedStatementCount}" Classes="metric" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+              <ItemsControl ItemsSource="{Binding StatementRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="soft-card" Margin="0,0,0,7">
+                      <Grid ColumnDefinitions="Auto,78,*,110,100" ColumnSpacing="9">
+                        <CheckBox IsChecked="{Binding IsSelected}" />
+                        <TextBlock Grid.Column="1" Text="{Binding DateLabel}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Text="{Binding Description}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="3" ItemsSource="{Binding $parent[UserControl].DataContext.Categories}" SelectedItem="{Binding Category}" IsVisible="{Binding !IsIncome}" />
+                        <TextBlock Grid.Column="4" Text="{Binding AmountLabel}" Classes.positive="{Binding IsIncome}" Classes.negative="{Binding IsExpense}" FontWeight="SemiBold" TextAlignment="Right" VerticalAlignment="Center" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <!-- Potwierdzenie -->
+            <StackPanel IsVisible="{Binding Editor.IsConfirm}" Spacing="14">
+              <Border Width="54" Height="54" CornerRadius="27" Background="#18E19A2A" HorizontalAlignment="Center">
+                <TextBlock Text="!" Foreground="{DynamicResource WarningBrush}" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <TextBlock Text="{Binding Editor.ConfirmMessage}" TextAlignment="Center" TextWrapping="Wrap" FontSize="14" MaxWidth="510" HorizontalAlignment="Center" />
+            </StackPanel>
+
+            <Border IsVisible="{Binding !!Editor.Error}" Background="#16D65252" CornerRadius="9" Padding="11">
+              <TextBlock Text="{Binding Editor.Error}" Foreground="{DynamicResource NegativeBrush}" FontSize="11" TextWrapping="Wrap" />
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="24,16">
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="9">
+            <Button Classes="soft" Content="Anuluj" Command="{Binding CloseEditorCommand}" />
+            <Button Classes="primary" Content="Zatwierdź" Command="{Binding SaveEditorCommand}" MinWidth="120" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

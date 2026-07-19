@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Portfel.ViewModels"
+             x:Class="Portfel.Views.PlanView"
+             x:DataType="vm:PlanPageViewModel"
+             x:CompileBindings="False">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="30,24,30,34" Spacing="18">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel><TextBlock Text="Plan, który pilnuje powtarzalnych rzeczy" Classes="h2" /><TextBlock Text="Wpisy cykliczne uwzględniają przyszłe zobowiązania, a limity kategorii pokazują tempo wydatków." Classes="muted" FontSize="11" Margin="0,4,0,0" /></StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <ComboBox Width="145" ItemsSource="{Binding Shell.Months}" SelectedItem="{Binding Shell.SelectedMonthChoice}" />
+          <ComboBox Width="95" ItemsSource="{Binding Shell.Years}" SelectedItem="{Binding Shell.SelectedYear}" />
+        </StackPanel>
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+        <Border Classes="card">
+          <StackPanel Spacing="15">
+            <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="Wpisy cykliczne" Classes="h2" /><TextBlock Text="Wypłata, czynsz, abonamenty i inne stałe kwoty" Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Classes="primary" Content="＋ Dodaj" Command="{Binding Shell.AddRecurringCommand}" IsEnabled="{Binding Shell.RecurringEnabled}" /></Grid>
+            <Border Classes="soft-card" IsVisible="{Binding !Shell.RecurringEnabled}"><TextBlock Text="Moduł wpisów cyklicznych jest wyłączony. Włączysz go w Ustawieniach." Classes="muted" TextWrapping="Wrap" /></Border>
+            <ItemsControl ItemsSource="{Binding Shell.RecurringCards}" IsVisible="{Binding Shell.HasRecurring}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="34,*,110,Auto" ColumnSpacing="10" MinHeight="58">
+                    <Border Width="30" Height="30" CornerRadius="15" Background="#1618A999" VerticalAlignment="Center"><TextBlock Text="◷" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" /><TextBlock Text="{Binding Details}" Classes="muted" FontSize="9" /><TextBlock Text="{Binding Status}" Classes="muted" FontSize="9" /></StackPanel>
+                    <TextBlock Grid.Column="2" Text="{Binding Amount}" FontWeight="SemiBold" VerticalAlignment="Center" TextAlignment="Right" />
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                      <Button Classes="tiny" Content="Zaksięguj" Command="{Binding $parent[UserControl].DataContext.Shell.PostRecurringCommand}" CommandParameter="{Binding Id}" />
+                      <Button Classes="tiny" Content="Edytuj" Command="{Binding $parent[UserControl].DataContext.Shell.EditRecurringCommand}" CommandParameter="{Binding Id}" />
+                      <Button Classes="tiny danger" Content="×" Command="{Binding $parent[UserControl].DataContext.Shell.DeleteRecurringCommand}" CommandParameter="{Binding Id}" />
+                    </StackPanel>
+                    <Border Grid.ColumnSpan="4" Height="1" Background="{DynamicResource LineBrush}" VerticalAlignment="Bottom" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Brak wpisów cyklicznych." Classes="muted" IsVisible="{Binding !Shell.HasRecurring}" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card">
+          <StackPanel Spacing="15">
+            <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="Limity kategorii" Classes="h2" /><TextBlock Text="Miesięczne koperty obliczane z wydatków" Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Classes="primary" Content="＋ Dodaj" Command="{Binding Shell.AddBudgetCommand}" IsEnabled="{Binding Shell.EnvelopesEnabled}" /></Grid>
+            <Border Classes="soft-card" IsVisible="{Binding !Shell.EnvelopesEnabled}"><TextBlock Text="Limity kategorii są wyłączone. Włączysz je w Ustawieniach." Classes="muted" TextWrapping="Wrap" /></Border>
+            <ItemsControl ItemsSource="{Binding Shell.BudgetCards}" IsVisible="{Binding Shell.HasBudgets}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="0,0,0,13" Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="{Binding Category}" FontWeight="SemiBold" /><TextBlock Text="{Binding Spent, StringFormat='Wydano {0}'}" Classes="muted" FontSize="9" /></StackPanel><StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3"><TextBlock Text="{Binding Remaining, StringFormat='Zostało {0}'}" Classes="muted" FontSize="10" VerticalAlignment="Center" /><Button Classes="tiny" Content="Edytuj" Command="{Binding $parent[UserControl].DataContext.Shell.EditBudgetCommand}" CommandParameter="{Binding Id}" /><Button Classes="tiny danger" Content="×" Command="{Binding $parent[UserControl].DataContext.Shell.DeleteBudgetCommand}" CommandParameter="{Binding Id}" /></StackPanel></Grid>
+                    <ProgressBar Value="{Binding Percent}" Maximum="100" />
+                    <TextBlock Text="{Binding Limit, StringFormat='Limit: {0}'}" Classes="muted" FontSize="9" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Brak limitów kategorii." Classes="muted" IsVisible="{Binding !Shell.HasBudgets}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Classes="card" IsVisible="{Binding Shell.SpendingLimitsEnabled}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+          <StackPanel Spacing="6"><TextBlock Text="Limit do następnej wypłaty" Classes="h2" /><TextBlock Text="Program odejmuje zaplanowane wydatki cykliczne i dzieli pozostałe środki przez liczbę dni." Classes="muted" FontSize="10" TextWrapping="Wrap" /><TextBlock Text="{Binding Shell.AllowanceDetail}" Classes="muted" FontSize="10" /></StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+            <Border Classes="soft-card" MinWidth="150"><StackPanel><TextBlock Text="DZIENNIE" Classes="eyebrow" /><TextBlock Text="{Binding Shell.DailyAllowance}" Classes="metric" Margin="0,5,0,0" /></StackPanel></Border>
+            <Border Classes="soft-card" MinWidth="150"><StackPanel><TextBlock Text="TYGODNIOWO" Classes="eyebrow" /><TextBlock Text="{Binding Shell.WeeklyAllowance}" Classes="metric" Margin="0,5,0,0" /></StackPanel></Border>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
+

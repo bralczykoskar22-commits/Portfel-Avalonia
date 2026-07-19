@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+.idea/
+artifacts/
+publish/
+*.user
+*.suo
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+

@@ -1,0 +1,167 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Portfel.App"
+             RequestedThemeVariant="Light">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F3F6F4" />
+          <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SurfaceAltBrush" Color="#F7FAF8" />
+          <SolidColorBrush x:Key="TextPrimaryBrush" Color="#142423" />
+          <SolidColorBrush x:Key="TextSecondaryBrush" Color="#60706D" />
+          <SolidColorBrush x:Key="LineBrush" Color="#DDE7E3" />
+          <SolidColorBrush x:Key="InputBrush" Color="#FBFDFC" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="AppBackgroundBrush" Color="#101817" />
+          <SolidColorBrush x:Key="SurfaceBrush" Color="#182321" />
+          <SolidColorBrush x:Key="SurfaceAltBrush" Color="#202D2B" />
+          <SolidColorBrush x:Key="TextPrimaryBrush" Color="#ECF8F5" />
+          <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9BB0AC" />
+          <SolidColorBrush x:Key="LineBrush" Color="#30403D" />
+          <SolidColorBrush x:Key="InputBrush" Color="#14201E" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <SolidColorBrush x:Key="SidebarBrush" Color="#102A2C" />
+      <SolidColorBrush x:Key="SidebarMutedBrush" Color="#95AAA7" />
+      <SolidColorBrush x:Key="AccentBrush" Color="#18A999" />
+      <SolidColorBrush x:Key="AccentDarkBrush" Color="#0E7E73" />
+      <SolidColorBrush x:Key="AccentSoftBrush" Color="#DDF7F1" />
+      <SolidColorBrush x:Key="PositiveBrush" Color="#16855B" />
+      <SolidColorBrush x:Key="NegativeBrush" Color="#D65252" />
+      <SolidColorBrush x:Key="WarningBrush" Color="#E19A2A" />
+      <SolidColorBrush x:Key="InfoBrush" Color="#2D8CFF" />
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="Inter, Segoe UI" />
+      <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.eyebrow">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="LetterSpacing" Value="1.5" />
+    </Style>
+    <Style Selector="TextBlock.h1">
+      <Setter Property="FontSize" Value="26" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LineHeight" Value="32" />
+    </Style>
+    <Style Selector="TextBlock.h2">
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.h3">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.metric">
+      <Setter Property="FontSize" Value="25" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.positive"><Setter Property="Foreground" Value="{DynamicResource PositiveBrush}" /></Style>
+    <Style Selector="TextBlock.negative"><Setter Property="Foreground" Value="{DynamicResource NegativeBrush}" /></Style>
+    <Style Selector="TextBlock.warning"><Setter Property="Foreground" Value="{DynamicResource WarningBrush}" /></Style>
+
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Padding" Value="20" />
+    </Style>
+    <Style Selector="Border.soft-card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Padding" Value="15" />
+    </Style>
+    <Style Selector="Border.divider"><Setter Property="Background" Value="{DynamicResource LineBrush}" /></Style>
+
+    <Style Selector="Button">
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:pointerover"><Setter Property="Background" Value="{DynamicResource AccentDarkBrush}" /></Style>
+    <Style Selector="Button.soft">
+      <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="#18D65252" />
+      <Setter Property="Foreground" Value="{DynamicResource NegativeBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.icon">
+      <Setter Property="Width" Value="36" />
+      <Setter Property="Height" Value="36" />
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.tiny">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="9,4" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+
+    <Style Selector="ToggleButton.nav">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="MinHeight" Value="44" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Margin" Value="0,2" />
+      <Setter Property="CornerRadius" Value="11" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#B7C8C5" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ToggleButton.nav:pointerover"><Setter Property="Background" Value="#153E4142" /></Style>
+    <Style Selector="ToggleButton.nav:checked">
+      <Setter Property="Background" Value="#284ED6C4" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="TextBox, ComboBox, NumericUpDown, DatePicker">
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="Background" Value="{DynamicResource InputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="CornerRadius" Value="9" />
+    </Style>
+    <Style Selector="ProgressBar">
+      <Setter Property="Height" Value="8" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="{DynamicResource LineBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="CheckBox"><Setter Property="VerticalAlignment" Value="Center" /></Style>
+  </Application.Styles>
+</Application>
+

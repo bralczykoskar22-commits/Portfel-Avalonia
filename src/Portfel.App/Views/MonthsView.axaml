@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Portfel.ViewModels"
+             x:Class="Portfel.Views.MonthsView"
+             x:DataType="vm:MonthsPageViewModel"
+             x:CompileBindings="False">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="30,24,30,34" Spacing="18">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel>
+            <TextBlock Text="Każdy miesiąc osobno" Classes="h2" />
+            <TextBlock Text="Zmień miesiąc lub rok. Lista i wszystkie podsumowania przełączą się automatycznie." Classes="muted" FontSize="11" Margin="0,4,0,0" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <ComboBox Width="155" ItemsSource="{Binding Shell.Months}" SelectedItem="{Binding Shell.SelectedMonthChoice}" />
+            <ComboBox Width="100" ItemsSource="{Binding Shell.Years}" SelectedItem="{Binding Shell.SelectedYear}" />
+            <Button Classes="primary" Content="＋ Dodaj operację" Command="{Binding Shell.AddTransactionCommand}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+        <Border Classes="card"><StackPanel Spacing="7"><TextBlock Text="WPŁYWY" Classes="eyebrow" /><TextBlock Text="{Binding Shell.MonthIncome}" Classes="metric positive" /><TextBlock Text="Pieniądze, które wpłynęły" Classes="muted" FontSize="10" /></StackPanel></Border>
+        <Border Grid.Column="1" Classes="card"><StackPanel Spacing="7"><TextBlock Text="WYDATKI" Classes="eyebrow" /><TextBlock Text="{Binding Shell.MonthExpenses}" Classes="metric" /><TextBlock Text="Codzienne i stałe wydatki" Classes="muted" FontSize="10" /></StackPanel></Border>
+        <Border Grid.Column="2" Classes="card"><StackPanel Spacing="7"><TextBlock Text="CELE I DŁUGI" Classes="eyebrow" /><TextBlock Text="{Binding Shell.MonthTargets}" Classes="metric" /><TextBlock Text="Wpłaty oraz spłaty" Classes="muted" FontSize="10" /></StackPanel></Border>
+        <Border Grid.Column="3" Classes="card"><StackPanel Spacing="7"><TextBlock Text="ZOSTAŁO W MIESIĄCU" Classes="eyebrow" /><TextBlock Text="{Binding Shell.MonthNet}" Classes="metric" Classes.positive="{Binding Shell.IsMonthNetPositive}" Classes.negative="{Binding Shell.IsMonthNetNegative}" /><TextBlock Text="Wpływy minus wszystkie odpływy" Classes="muted" FontSize="10" /></StackPanel></Border>
+      </Grid>
+
+      <Border Classes="card">
+        <StackPanel>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <StackPanel><TextBlock Text="{Binding Shell.CurrentMonthLabel}" Classes="h2" /><TextBlock Text="Operacje są źródłem sald kont, postępu celów i spłaty długów." Classes="muted" FontSize="10" /></StackPanel>
+            <TextBlock Grid.Column="1" Text="{Binding Shell.Transactions.Count, StringFormat='{}{0} wpisów'}" Classes="muted" VerticalAlignment="Center" />
+          </Grid>
+
+          <Grid ColumnDefinitions="84,*,135,120,96" ColumnSpacing="10" Background="{DynamicResource SurfaceAltBrush}" Margin="-20,0" Padding="20,9">
+            <TextBlock Text="DATA" Classes="eyebrow" />
+            <TextBlock Grid.Column="1" Text="OPERACJA" Classes="eyebrow" />
+            <TextBlock Grid.Column="2" Text="RODZAJ" Classes="eyebrow" />
+            <TextBlock Grid.Column="3" Text="KWOTA" Classes="eyebrow" TextAlignment="Right" />
+            <TextBlock Grid.Column="4" Text="AKCJE" Classes="eyebrow" TextAlignment="Right" />
+          </Grid>
+
+          <ItemsControl ItemsSource="{Binding Shell.Transactions}" IsVisible="{Binding Shell.HasTransactions}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="84,*,135,120,96" ColumnSpacing="10" MinHeight="58">
+                  <TextBlock Text="{Binding Date}" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" /><TextBlock Text="{Binding Subtitle}" Classes="muted" FontSize="9" /></StackPanel>
+                  <TextBlock Grid.Column="2" Text="{Binding TypeLabel}" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="3" Text="{Binding Amount}" FontWeight="SemiBold" TextAlignment="Right" VerticalAlignment="Center" Classes.positive="{Binding IsPositive}" Classes.negative="{Binding IsNegative}" />
+                  <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Classes="tiny" Content="Edytuj" Command="{Binding $parent[UserControl].DataContext.Shell.EditTransactionCommand}" CommandParameter="{Binding Id}" />
+                    <Button Classes="tiny danger" Content="×" Command="{Binding $parent[UserControl].DataContext.Shell.DeleteTransactionCommand}" CommandParameter="{Binding Id}" />
+                  </StackPanel>
+                  <Border Grid.ColumnSpan="5" Height="1" Background="{DynamicResource LineBrush}" VerticalAlignment="Bottom" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Border Classes="soft-card" Margin="0,16,0,0" IsVisible="{Binding !Shell.HasTransactions}">
+            <StackPanel Spacing="9" HorizontalAlignment="Center" Margin="0,18">
+              <TextBlock Text="Ten miesiąc jest pusty" Classes="h3" HorizontalAlignment="Center" />
+              <TextBlock Text="Dodaj pierwszy wpływ, wydatek, wpłatę na cel lub spłatę długu." Classes="muted" FontSize="11" TextAlignment="Center" />
+              <Button Classes="primary" Content="Dodaj pierwszą operację" Command="{Binding Shell.AddTransactionCommand}" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
+

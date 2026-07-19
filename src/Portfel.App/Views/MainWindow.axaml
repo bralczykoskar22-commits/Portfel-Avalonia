@@ -1,0 +1,110 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Portfel.ViewModels"
+        xmlns:views="using:Portfel.Views"
+        x:Class="Portfel.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Portfel"
+        Icon="/Assets/portfel.ico"
+        Width="1380" Height="860"
+        MinWidth="1040" MinHeight="680"
+        WindowStartupLocation="CenterScreen">
+  <Window.DataTemplates>
+    <DataTemplate DataType="vm:DashboardPageViewModel"><views:DashboardView /></DataTemplate>
+    <DataTemplate DataType="vm:MonthsPageViewModel"><views:MonthsView /></DataTemplate>
+    <DataTemplate DataType="vm:GoalsPageViewModel"><views:GoalsView /></DataTemplate>
+    <DataTemplate DataType="vm:DebtsPageViewModel"><views:DebtsView /></DataTemplate>
+    <DataTemplate DataType="vm:PlanPageViewModel"><views:PlanView /></DataTemplate>
+    <DataTemplate DataType="vm:AnalyticsPageViewModel"><views:AnalyticsView /></DataTemplate>
+    <DataTemplate DataType="vm:AccountsPageViewModel"><views:AccountsView /></DataTemplate>
+    <DataTemplate DataType="vm:SettingsPageViewModel"><views:SettingsView /></DataTemplate>
+  </Window.DataTemplates>
+
+  <Grid ColumnDefinitions="238,*" RowDefinitions="Auto,*">
+    <Border Grid.RowSpan="2" Background="{StaticResource SidebarBrush}">
+      <Grid Margin="18,20,18,18" RowDefinitions="Auto,Auto,*,Auto">
+        <Grid ColumnDefinitions="44,*" Margin="5,0,5,26">
+          <Image Width="38" Height="38" Source="/Assets/portfel.png" />
+          <StackPanel Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center">
+            <TextBlock Text="PORTFEL" Foreground="White" FontWeight="Bold" FontSize="15" LetterSpacing="1.2" />
+            <TextBlock Text="Twoje finanse lokalnie" Foreground="{StaticResource SidebarMutedBrush}" FontSize="10" />
+          </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="1" Spacing="2">
+          <ToggleButton Classes="nav" IsChecked="{Binding IsDashboardPage, Mode=OneWay}" Command="{Binding NavigateCommand}" CommandParameter="dashboard">
+            <Grid ColumnDefinitions="28,*"><TextBlock Text="⌂" FontSize="17" Foreground="{Binding $parent[ToggleButton].Foreground}" /><TextBlock Grid.Column="1" Text="Pulpit" Foreground="{Binding $parent[ToggleButton].Foreground}" /></Grid>
+          </ToggleButton>
+          <ToggleButton Classes="nav" IsChecked="{Binding IsMonthsPage, Mode=OneWay}" Command="{Binding NavigateCommand}" CommandParameter="months">
+            <Grid ColumnDefinitions="28,*"><TextBlock Text="▦" FontSize="16" Foreground="{Binding $parent[ToggleButton].Foreground}" /><TextBlock Grid.Column="1" Text="Miesiące" Foreground="{Binding $parent[ToggleButton].Foreground}" /></Grid>
+          </ToggleButton>
+          <ToggleButton Classes="nav" IsChecked="{Binding IsGoalsPage, Mode=OneWay}" Command="{Binding NavigateCommand}" CommandParameter="goals">
+            <Grid ColumnDefinitions="28,*,Auto"><TextBlock Text="◎" FontSize="17" Foreground="{Binding $parent[ToggleButton].Foreground}" /><TextBlock Grid.Column="1" Text="Cele" Foreground="{Binding $parent[ToggleButton].Foreground}" /><Border Grid.Column="2" Background="#285EEAD4" CornerRadius="9" Padding="7,2" IsVisible="{Binding HasGoals}"><TextBlock Text="{Binding ActiveGoals}" Foreground="White" FontSize="10" /></Border></Grid>
+          </ToggleButton>
+          <ToggleButton Classes="nav" IsChecked="{Binding IsDebtsPage, Mode=OneWay}" Command="{Binding NavigateCommand}" CommandParameter="debts">
+            <Grid ColumnDefinitions="28,*,Auto"><TextBlock Text="↘" FontSize="17" Foreground="{Binding $parent[ToggleButton].Foreground}" /><TextBlock Grid.Column="1" Text="Długi" Foreground="{Binding $parent[ToggleButton].Foreground}" /><Border Grid.Column="2" Background="#28F4A261" CornerRadius="9" Padding="7,2" IsVisible="{Binding HasDebts}"><TextBlock Text="{Binding ActiveDebts}" Foreground="White" FontSize="10" /></Border></Grid>
+          </ToggleButton>
+          <ToggleButton Classes="nav" IsChecked="{Binding IsPlanPage, Mode=OneWay}" Command="{Binding NavigateCommand}" CommandParameter="plan">
+            <Grid ColumnDefinitions="28,*"><TextBlock Text="◷" FontSize="17" Foreground="{Binding $parent[ToggleButton].Foreground}" /><TextBlock Grid.Column="1" Text="Plan i limity" Foreground="{Binding $parent[ToggleButton].Foreground}" /></Grid>
+          </ToggleButton>
+          <ToggleButton Classes="nav" IsChecked="{Binding IsAnalyticsPage, Mode=OneWay}" Command="{Binding NavigateCommand}" CommandParameter="analytics">
+            <Grid ColumnDefinitions="28,*"><TextBlock Text="⌁" FontSize="18" Foreground="{Binding $parent[ToggleButton].Foreground}" /><TextBlock Grid.Column="1" Text="Podsumowanie roku" Foreground="{Binding $parent[ToggleButton].Foreground}" /></Grid>
+          </ToggleButton>
+          <ToggleButton Classes="nav" IsVisible="{Binding BankAccountsEnabled}" IsChecked="{Binding IsAccountsPage, Mode=OneWay}" Command="{Binding NavigateCommand}" CommandParameter="accounts">
+            <Grid ColumnDefinitions="28,*"><TextBlock Text="▣" FontSize="16" Foreground="{Binding $parent[ToggleButton].Foreground}" /><TextBlock Grid.Column="1" Text="Konta i wyciągi" Foreground="{Binding $parent[ToggleButton].Foreground}" /></Grid>
+          </ToggleButton>
+          <ToggleButton Classes="nav" IsChecked="{Binding IsSettingsPage, Mode=OneWay}" Command="{Binding NavigateCommand}" CommandParameter="settings">
+            <Grid ColumnDefinitions="28,*"><TextBlock Text="⚙" FontSize="15" Foreground="{Binding $parent[ToggleButton].Foreground}" /><TextBlock Grid.Column="1" Text="Ustawienia" Foreground="{Binding $parent[ToggleButton].Foreground}" /></Grid>
+          </ToggleButton>
+        </StackPanel>
+
+        <Border Grid.Row="3" Background="#153E5150" CornerRadius="13" Padding="13">
+          <StackPanel Spacing="5">
+            <TextBlock Text="DANE PRYWATNE" Foreground="#75E6D6" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" />
+            <TextBlock Text="Wszystko zostaje na tym komputerze." Foreground="#D8E5E2" FontSize="11" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding AppVersion}" Foreground="{StaticResource SidebarMutedBrush}" FontSize="9" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <Border Grid.Column="1" Padding="30,20,30,17" Background="{DynamicResource AppBackgroundBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Classes="eyebrow" Text="{Binding CurrentEyebrow}" />
+          <TextBlock Classes="h1" Text="{Binding CurrentTitle}" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="icon" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="Zmień motyw">
+          <TextBlock Text="◐" FontSize="17" />
+        </Button>
+        <Button Grid.Column="2" Classes="primary" Command="{Binding SaveCommand}" MinWidth="178">
+          <Grid ColumnDefinitions="24,*">
+            <TextBlock Text="✓" FontSize="16" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1">
+              <TextBlock Text="{Binding SaveState}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding SaveDetail}" Foreground="#D8FFF7" FontSize="9" />
+            </StackPanel>
+          </Grid>
+        </Button>
+      </Grid>
+    </Border>
+
+    <TransitioningContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}" Margin="0">
+      <TransitioningContentControl.PageTransition>
+        <CrossFade Duration="0:0:0.16" />
+      </TransitioningContentControl.PageTransition>
+    </TransitioningContentControl>
+
+    <views:EditorOverlay Grid.RowSpan="2" Grid.ColumnSpan="2" IsVisible="{Binding Editor.IsOpen}" />
+
+    <Border Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+            Margin="24" Padding="15,11" CornerRadius="12" Background="{StaticResource SidebarBrush}"
+            IsVisible="{Binding HasToast}" MaxWidth="430" ZIndex="20">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <TextBlock Text="{Binding Toast}" Foreground="White" TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Classes="tiny" Command="{Binding DismissToastCommand}" Foreground="White" Content="×" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>
+

@@ -1,0 +1,25 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Portfel.App", "src\Portfel.App\Portfel.App.csproj", "{532880B2-726C-43F7-B7F2-C02139237541}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Portfel.Tests", "tests\Portfel.Tests\Portfel.Tests.csproj", "{A571CFB3-0401-42D3-B761-65EE0998A156}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{532880B2-726C-43F7-B7F2-C02139237541}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{532880B2-726C-43F7-B7F2-C02139237541}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{532880B2-726C-43F7-B7F2-C02139237541}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{532880B2-726C-43F7-B7F2-C02139237541}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A571CFB3-0401-42D3-B761-65EE0998A156}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A571CFB3-0401-42D3-B761-65EE0998A156}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A571CFB3-0401-42D3-B761-65EE0998A156}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A571CFB3-0401-42D3-B761-65EE0998A156}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
+
